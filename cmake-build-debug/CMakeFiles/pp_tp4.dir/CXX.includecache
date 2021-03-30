@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/shadawck/CLionProjects/pp_tp4/VectorAdd.cpp
+stdio.h
+-
+stdlib.h
+-
+iostream
+-
+CL/cl.h
+-
+
