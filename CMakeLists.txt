@@ -1,9 +1,6 @@
-cmake_minimum_required (VERSION 3.16)
-project(pp_tp4 CXX)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.6)
 
-find_package(OpenCL REQUIRED)
+project(pp_tp4)
 
-set(CMAKE_CXX_STANDARD 20)
-
-add_executable(pp_tp4 VectorAdd.cpp)
-target_link_libraries(pp_tp4 OpenCL::OpenCL)
+ADD_SUBDIRECTORY(openACC)
+ADD_SUBDIRECTORY(openCL)

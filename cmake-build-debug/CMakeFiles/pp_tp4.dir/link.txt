@@ -1,1 +1,0 @@
-/usr/bin/clang++  -g   CMakeFiles/pp_tp4.dir/VectorAdd.cpp.o  -o pp_tp4  /usr/lib/x86_64-linux-gnu/libOpenCL.so 
