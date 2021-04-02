@@ -61,14 +61,16 @@ void invertSequential(Matrix &mat) {
 
 /**
  * Invert matrix with Gauss Jordan method
+ * OPENACC implementation
  * @param mat Original matrix
  */
 void invertParallel(Matrix &mat) {
-    /* OPENACC implementation */
     assert(mat.rows() == mat.cols());
     MatrixConcatCols augmentedMatrix(mat, MatrixIdentity(mat.rows()));
 
     // traiter chaque rangée
+#pragma acc kernels
+#pragma acc loop independent
     for (size_t row = 0; row < mat.rows(); ++row) {
 
         size_t pivot;

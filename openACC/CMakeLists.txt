@@ -1,11 +1,12 @@
-cmake_minimum_required (VERSION 3.6)
+cmake_minimum_required (VERSION 3.7)
 project (pp_tp4)
 
-include_directories(${MPI_INCLUDE_PATH})
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_FLAGS " -fopenacc -foffload=nvptx-none -flto -Wall -Wextra")
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -O3 -Wno-unused-variable -Wshadow -Wuninitialized -Wunused-label")
+find_package(OpenMP REQUIRED)
 
 add_executable(pp_openacc main.cpp Matrix.cpp)
-target_link_libraries(pp_openacc)
+
 
 INCLUDE(CPack)
