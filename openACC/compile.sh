@@ -6,12 +6,6 @@
 
 set -o nounset -o errexit
 
-wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
-mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
-apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
-add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /"
-apt-get update && apt-get -y install cuda
-
 # Location of the installed CUDA toolkit
 cuda=/usr/local/cuda
 
@@ -52,13 +46,13 @@ cd ..
 # Build nvptx GCC
 mkdir build-nvptx-gcc
 cd build-nvptx-gcc
-../gcc-7.3.0/configure \
+../gcc-10.2.0/configure \
 	--target=nvptx-none \
 	--with-build-time-tools=$install_dir/nvptx-none/bin \
 	--enable-as-accelerator-for=$target \
 	--disable-sjlj-exceptions \
 	--enable-newlib-io-long-long \
-	--enable-languages="c,c++,fortran,lto" \
+	--enable-languages="c,c++,lto" \
 	--prefix=$install_dir
 make -j4
 make install

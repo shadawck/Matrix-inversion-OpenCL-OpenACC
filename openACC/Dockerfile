@@ -1,5 +1,5 @@
-FROM ubuntu:18.04
-RUN apt-get update && apt-get install git build-essential wget software-properties-common -y
+FROM ubuntu:20.10
+RUN apt-get update && apt-get install nvidia-cuda-toolkit git build-essential wget -y
 
 ## Compile offloaded gcc
 RUN mkdir -p /offload
