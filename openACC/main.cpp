@@ -171,42 +171,41 @@ int main(int argc, char **argv) {
     MatrixRandom randomMatrix(matrixDimension, matrixDimension);
     const Matrix &copyRandomMatrix(randomMatrix);
 
-    /**
-    * Sequential execution
-    */
-    cout << "--- SEQUENTIAL EXECUTION ---" << endl;
-    Matrix seqMatrix(randomMatrix);
-
-    auto cronSeq = Chrono(true);
-    invertSequential(seqMatrix);
-    cronSeq.pause();
-
-    Matrix lResSeq = multiplyMatrix(seqMatrix, copyRandomMatrix);
-    printResult(matrixDimension, cronSeq, lResSeq);
-
-    /**
-     * openACC NUMERO 1 execution
-     */
-    cout << endl << " --- PARALLEL EXECUTION SOLUTION 1 --- " << endl;
-
+//    /**
+//    * Sequential execution
+//    */
+//    cout << "--- SEQUENTIAL EXECUTION ---" << endl;
+//    Matrix seqMatrix(randomMatrix);
+//
+//    auto cronSeq = Chrono(true);
+//    invertSequential(seqMatrix);
+//    cronSeq.pause();
+//
+////    Matrix lResSeq = multiplyMatrix(seqMatrix, copyRandomMatrix);
+////    printResult(matrixDimension, cronSeq, lResSeq);
+//    printResultMin(matrixDimension,cronSeq);
+//
+//    /**
+//     * openACC NUMERO 1 execution
+//     */
+//    cout << endl << " --- PARALLEL EXECUTION SOLUTION 1 --- " << endl;
+//
     Matrix parMatrix = Matrix(randomMatrix);
-    MatrixConcatCols augmentedMatrix(parMatrix, MatrixIdentity(parMatrix.rows()));
-
-    auto *augMat = (double *) malloc(matrixDimension * matrixDimension * 2 * sizeof(double));
-    augMat = convertValArrayToDouble(augmentedMatrix.getDataArray());
-
-    auto cronPar = Chrono(true);
-    invertParallelRaw(augMat, augmentedMatrix.rows());
-    cronPar.pause();
-
-    Matrix resMatrix(matrixDimension, matrixDimension);
-    arrayToMatrix(augmentedMatrix, augMat, resMatrix);
-
-//    cout << resMatrix.str() << endl;
-
-    cout << " -- Calculating Error Solution 1 --" << endl;
-    Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
-    printResult(matrixDimension, cronPar, lResPar);
+//    MatrixConcatCols augmentedMatrix(parMatrix, MatrixIdentity(parMatrix.rows()));
+//
+//    auto *augMat = (double *) malloc(matrixDimension * matrixDimension * 2 * sizeof(double));
+//    augMat = convertValArrayToDouble(augmentedMatrix.getDataArray());
+//
+//    auto cronPar = Chrono(true);
+//    invertParallelRaw(augMat, augmentedMatrix.rows());
+//    cronPar.pause();
+//
+////    Matrix resMatrix(matrixDimension, matrixDimension);
+////    arrayToMatrix(augmentedMatrix, augMat, resMatrix);
+////    cout << " -- Calculating Error Solution 1 --" << endl;
+////    Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
+////    printResult(matrixDimension, cronPar, lResPar);
+//    printResultMin(matrixDimension,cronPar);
 
 
     /**
@@ -225,12 +224,12 @@ int main(int argc, char **argv) {
     cout << " -- Calculating Error Solution 2 --" << endl;
     Matrix resMatrix_2 = multiArrayToMatrix(eyeMat, parMatrix.rows(), parMatrix.rows());
     Matrix lResPar_2 = multiplyMatrix(resMatrix_2, copyRandomMatrix);
-
     printResult(matrixDimension, cronPar_2, lResPar_2);
+    printResultMin(matrixDimension,cronPar_2);
 
     cout << " -- De-allocation (cleaning) --" << endl;
 
-    delete[] augMat;
+//    delete[] augMat;
     cleanArray(eyeMat, parMatrix.rows());
     cleanArray(newMat, parMatrix.rows());
 
