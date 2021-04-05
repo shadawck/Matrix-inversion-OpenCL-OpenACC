@@ -15,7 +15,10 @@ Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2);
 
 void printResult(int matrixDimension, Chrono cron, Matrix &lRes);
 
+void printResultMin(int matrixDimension, Chrono cron);
+
 void arrayToMatrix(MatrixConcatCols &augmentedMatrix, const double *augMat, const Matrix &resMatrix);
+
 
 /// DEBUG ///
 void printAugMatrix1DArray(double *matrix, int size);
@@ -177,15 +180,15 @@ int main(int argc, char **argv) {
 
     auto cronPar = Chrono(true);
     invertParallelRaw(augMat, augmentedMatrix.rows());
-
     cronPar.pause();
 
     Matrix resMatrix(matrixDimension, matrixDimension);
     arrayToMatrix(augmentedMatrix, augMat, resMatrix);
 
     cout << " -- Calculating Error --" << endl;
-    Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
-    printResult(matrixDimension, cronPar, lResPar);
+//    Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
+//    printResult(matrixDimension, cronPar, lResPar);
+    printResultMin(matrixDimension, cronPar);
 
     cout << " -- De-allocation (cleaning) --" << endl;
 
@@ -196,7 +199,7 @@ int main(int argc, char **argv) {
 
 void arrayToMatrix(MatrixConcatCols &augmentedMatrix, const double *augMat, const Matrix &resMatrix) {
 #pragma acc parallel loop
-    for (int i = 0; i < augmentedMatrix.cols() * augmentedMatrix.cols(); i++) {
+    for (int i = 0; i < augmentedMatrix.cols() * augmentedMatrix.rows(); i++) {
         augmentedMatrix.getDataArray()[i] = augMat[i];
     }
 
@@ -212,6 +215,11 @@ void printResult(int matrixDimension, Chrono cron, Matrix &lRes) {
     cout << "Total execution time : " << cron.get() << endl;
 }
 
+void printResultMin(int matrixDimension, Chrono cron) {
+    cout << "Matrix dimension : " << matrixDimension << endl;
+    cout << "Total execution time : " << cron.get() << endl;
+}
+
 double *convertValArrayToDouble(valarray<double> array) {
     auto *newArray = new double[array.size()];
     copy(begin(array), end(array), newArray);
@@ -221,7 +229,6 @@ double *convertValArrayToDouble(valarray<double> array) {
 Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2) {
     assert(iMat1.cols() == iMat2.rows());
     Matrix lRes(iMat1.rows(), iMat2.cols());
-
     for (int i = 0; i < lRes.rows(); ++i) {
         for (int j = 0; j < lRes.cols(); ++j) {
             lRes(i, j) = (iMat1.getRowCopy(i) * iMat2.getColumnCopy(j)).sum();
