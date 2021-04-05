@@ -134,7 +134,7 @@ void invertParallelRaw(double *augMat, int size) {
 void bruteForce(double **mat, double **eyeResMat, int size) {
 
     for (int row = 0; row < size; ++row) {
-#pragma acc parallel
+#pragma acc kernels
         {
             double scale = 1.0 / mat[row][row]; // diag
 
@@ -170,12 +170,13 @@ int main(int argc, char **argv) {
 
     MatrixRandom randomMatrix(matrixDimension, matrixDimension);
     const Matrix &copyRandomMatrix(randomMatrix);
+    Matrix seqMatrix(randomMatrix);
+    Matrix parMatrix(randomMatrix);
 
     /**
     * Sequential execution
     */
     cout << "--- SEQUENTIAL EXECUTION ---" << endl;
-    Matrix seqMatrix(randomMatrix);
 
     auto cronSeq = Chrono(true);
     invertSequential(seqMatrix);
@@ -190,7 +191,6 @@ int main(int argc, char **argv) {
      */
     cout << endl << " --- PARALLEL EXECUTION SOLUTION 1 --- " << endl;
 
-    Matrix parMatrix = Matrix(randomMatrix);
     MatrixConcatCols augmentedMatrix(parMatrix, MatrixIdentity(parMatrix.rows()));
 
     auto *augMat = (double *) malloc(matrixDimension * matrixDimension * 2 * sizeof(double));
@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
 //    printResult(matrixDimension, cronPar_2, lResPar_2);
     printResultMin(matrixDimension, cronPar_2);
 
-    cout << " -- De-allocation (cleaning) --" << endl;
+    cout << endl <<" -- CLEANING --" << endl;
 
     delete[] augMat;
     cleanArray(eyeResMat, parMatrix.rows());
