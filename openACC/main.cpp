@@ -131,27 +131,27 @@ void invertParallelRaw(double *augMat, int size) {
     }
 }
 
-void bruteForce(double **mat, double **eyeMat, int size) {
+void bruteForce(double **mat, double **eyeResMat, int size) {
 
-    for (int fd = 0; fd < size; ++fd) {
-#pragma acc kernels
+    for (int row = 0; row < size; ++row) {
+#pragma acc parallel
         {
-            double scale = 1.0 / mat[fd][fd]; // diag
+            double scale = 1.0 / mat[row][row]; // diag
 
 #pragma acc for independent
             for (int i = 0; i < size; ++i) {
-                mat[fd][i] *= scale;
-                eyeMat[fd][i] *= scale;
+                mat[row][i] *= scale;
+                eyeResMat[row][i] *= scale;
             }
 
 #pragma acc for independent
             for (int i = 0; i < size; ++i) {
-                if (i != fd) {
-                    double crScale = mat[i][fd];
+                if (i != row) {
+                    double currentScale = mat[i][row];
 #pragma acc for independent
                     for (int j = 0; j < size; ++j) {
-                        mat[i][j] = mat[i][j] - crScale * mat[fd][j];
-                        eyeMat[i][j] = eyeMat[i][j] - crScale * eyeMat[fd][j];
+                        mat[i][j] = mat[i][j] - currentScale * mat[row][j];
+                        eyeResMat[i][j] = eyeResMat[i][j] - currentScale * eyeResMat[row][j];
                     }
                 }
             }
@@ -171,42 +171,41 @@ int main(int argc, char **argv) {
     MatrixRandom randomMatrix(matrixDimension, matrixDimension);
     const Matrix &copyRandomMatrix(randomMatrix);
 
-//    /**
-//    * Sequential execution
-//    */
-//    cout << "--- SEQUENTIAL EXECUTION ---" << endl;
-//    Matrix seqMatrix(randomMatrix);
-//
-//    auto cronSeq = Chrono(true);
-//    invertSequential(seqMatrix);
-//    cronSeq.pause();
-//
-////    Matrix lResSeq = multiplyMatrix(seqMatrix, copyRandomMatrix);
-////    printResult(matrixDimension, cronSeq, lResSeq);
-//    printResultMin(matrixDimension,cronSeq);
-//
-//    /**
-//     * openACC NUMERO 1 execution
-//     */
-//    cout << endl << " --- PARALLEL EXECUTION SOLUTION 1 --- " << endl;
-//
-    Matrix parMatrix = Matrix(randomMatrix);
-//    MatrixConcatCols augmentedMatrix(parMatrix, MatrixIdentity(parMatrix.rows()));
-//
-//    auto *augMat = (double *) malloc(matrixDimension * matrixDimension * 2 * sizeof(double));
-//    augMat = convertValArrayToDouble(augmentedMatrix.getDataArray());
-//
-//    auto cronPar = Chrono(true);
-//    invertParallelRaw(augMat, augmentedMatrix.rows());
-//    cronPar.pause();
-//
-////    Matrix resMatrix(matrixDimension, matrixDimension);
-////    arrayToMatrix(augmentedMatrix, augMat, resMatrix);
-////    cout << " -- Calculating Error Solution 1 --" << endl;
-////    Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
-////    printResult(matrixDimension, cronPar, lResPar);
-//    printResultMin(matrixDimension,cronPar);
+    /**
+    * Sequential execution
+    */
+    cout << "--- SEQUENTIAL EXECUTION ---" << endl;
+    Matrix seqMatrix(randomMatrix);
 
+    auto cronSeq = Chrono(true);
+    invertSequential(seqMatrix);
+    cronSeq.pause();
+
+//    Matrix lResSeq = multiplyMatrix(seqMatrix, copyRandomMatrix);
+//    printResult(matrixDimension, cronSeq, lResSeq);
+    printResultMin(matrixDimension, cronSeq);
+
+    /**
+     * openACC NUMERO 1 execution
+     */
+    cout << endl << " --- PARALLEL EXECUTION SOLUTION 1 --- " << endl;
+
+    Matrix parMatrix = Matrix(randomMatrix);
+    MatrixConcatCols augmentedMatrix(parMatrix, MatrixIdentity(parMatrix.rows()));
+
+    auto *augMat = (double *) malloc(matrixDimension * matrixDimension * 2 * sizeof(double));
+    augMat = convertValArrayToDouble(augmentedMatrix.getDataArray());
+
+    auto cronPar = Chrono(true);
+    invertParallelRaw(augMat, augmentedMatrix.rows());
+    cronPar.pause();
+
+//    Matrix resMatrix(matrixDimension, matrixDimension);
+//    arrayToMatrix(augmentedMatrix, augMat, resMatrix);
+//    cout << " -- Calculating Error Solution 1 --" << endl;
+//    Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
+//    printResult(matrixDimension, cronPar, lResPar);
+    printResultMin(matrixDimension, cronPar);
 
     /**
      * openACC SOLUTION 2 execution
@@ -215,22 +214,22 @@ int main(int argc, char **argv) {
     cout << endl << " --- PARALLEL EXECUTION SOLUTION 2 --- " << endl;
 
     double **newMat = MatrixTo2DArray(parMatrix);
-    double **eyeMat = MatrixTo2DArray(MatrixIdentity(parMatrix.rows()));
+    double **eyeResMat = MatrixTo2DArray(MatrixIdentity(parMatrix.rows()));
 
     auto cronPar_2 = Chrono(true);
-    bruteForce(newMat, eyeMat, parMatrix.rows());
+    bruteForce(newMat, eyeResMat, parMatrix.rows());
     cronPar_2.pause();
 
-    cout << " -- Calculating Error Solution 2 --" << endl;
-    Matrix resMatrix_2 = multiArrayToMatrix(eyeMat, parMatrix.rows(), parMatrix.rows());
-    Matrix lResPar_2 = multiplyMatrix(resMatrix_2, copyRandomMatrix);
-    printResult(matrixDimension, cronPar_2, lResPar_2);
-    printResultMin(matrixDimension,cronPar_2);
+//    cout << " -- Calculating Error Solution 2 --" << endl;
+//    Matrix resMatrix_2 = multiArrayToMatrix(eyeResMat, parMatrix.rows(), parMatrix.rows());
+//    Matrix lResPar_2 = multiplyMatrix(resMatrix_2, copyRandomMatrix);
+//    printResult(matrixDimension, cronPar_2, lResPar_2);
+    printResultMin(matrixDimension, cronPar_2);
 
     cout << " -- De-allocation (cleaning) --" << endl;
 
-//    delete[] augMat;
-    cleanArray(eyeMat, parMatrix.rows());
+    delete[] augMat;
+    cleanArray(eyeResMat, parMatrix.rows());
     cleanArray(newMat, parMatrix.rows());
 
     return 0;
