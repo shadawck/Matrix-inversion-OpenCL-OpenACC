@@ -1,11 +1,5 @@
 #include "Matrix.hpp"
-#include <cstdlib>
-#include <ctime>
-#include <iostream>
-#include <stdexcept>
-#include <unistd.h>
 #include "Chrono.hpp"
-#include "../../../../../usr/include/c++/10/valarray"
 
 using namespace std;
 
@@ -85,15 +79,15 @@ void invertParallelRaw(double *augMat, int size) {
 
     // Use static array so dont need to deallocate. Will be release after loop
 
-
     for (int row = 0; row < size; ++row) {
 
-#pragma acc kernels pcopyin(augMat[0:size*colSize]) pcopyout(augMat[0:size*colSize])
+
+#pragma acc parallel
         {
             int pivot = row;
             double lMax = fabs(augMat[colSize * row + row]);
 
-#pragma acc for independent present(augMat) copyin(lMax) copyout(pivot)
+#pragma acc for independent
             for (int i = row; i < size; ++i) {
                 if (fabs(augMat[colSize * i + row]) > lMax) {
                     lMax = fabs(augMat[colSize * i + row]);
@@ -107,13 +101,10 @@ void invertParallelRaw(double *augMat, int size) {
 //        }
 
             if (pivot != row) {
-//                double tmpRow[colSize];
+//
 #pragma acc for present(augMat[0:size*colSize])
                 for (int i = 0; i < colSize; ++i) {
-//                    tmpRow[i] = augMat[colSize * row + i];
-//                    augMat[colSize * row + i] = augMat[colSize * pivot + i];
-//
-//                    augMat[colSize * pivot + i] = tmpRow[i];
+                    /// Arithetic operation
                     augMat[colSize * row + i] = augMat[colSize * row + i] + augMat[colSize * pivot + i];
                     augMat[colSize * pivot + i] = augMat[colSize * row + i] - augMat[colSize * pivot + i];
                     augMat[colSize * row + i] = augMat[colSize * row + i] - augMat[colSize * pivot + i];
@@ -122,7 +113,7 @@ void invertParallelRaw(double *augMat, int size) {
 
             double pivotVal = augMat[colSize * row + row];
 
-#pragma acc for independent
+#pragma acc loop gang
             for (int i = 0; i < colSize; ++i) {
                 augMat[colSize * row + i] /= pivotVal;
             }
@@ -131,7 +122,6 @@ void invertParallelRaw(double *augMat, int size) {
             for (int i = 0; i < size; ++i) {
                 if (i != row) {
                     double llValue = augMat[colSize * i + row];
-#pragma acc loop
                     for (int j = 0; j < colSize; ++j) { // get row of index "row"
                         augMat[colSize * i + j] -= augMat[colSize * row + j] * llValue;// substitution on i slice
                     }
