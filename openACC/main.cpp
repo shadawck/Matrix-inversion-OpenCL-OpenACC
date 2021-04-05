@@ -9,22 +9,16 @@
 
 using namespace std;
 
-void findPivot(int row, MatrixConcatCols &augmentedMatrix, int &pivot);
-
-void splitAugmentedMatrix(Matrix &mat, MatrixConcatCols &augmentedMatrix);
-
 double *convertValArrayToDouble(valarray<double> array);
-
-void checkSingularity(const MatrixConcatCols &augmentedMatrix, int p, int k);
 
 Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2);
 
 void printResult(int matrixDimension, Chrono cron, Matrix &lRes);
 
+void arrayToMatrix(MatrixConcatCols &augmentedMatrix, const double *augMat, const Matrix &resMatrix);
+
+/// DEBUG ///
 void printAugMatrix1DArray(double *matrix, int size);
-
-
-void arrayToMatrix(MatrixConcatCols &augmentedMatrix, double *augMat, Matrix &resMatrix);
 
 /**
  * Inverser la matrice par la méthode de Gauss-Jordan; implantation séquentielle.
@@ -143,8 +137,16 @@ void invertParallel(Matrix &mat) {
 //    cout << "Cron4 : " << cron4.get() << endl;
 }
 
+/**
+ * Invert matrix with Gauss Jordan method
+ * Raw (without Matrix class) && OPENACC implementation
+ * @param mat Original matrix
+ */
 void invertParallelRaw(double *augMat, int size) {
     int colSize = size * 2; // number of column and size of a row
+
+    // Use static array so dont need to deallocate. Will be release after loop
+    double tmpRow[colSize];
 
     for (int row = 0; row < size; ++row) {
         int pivot = row;
@@ -162,7 +164,6 @@ void invertParallelRaw(double *augMat, int size) {
         }
 
         if (pivot != row) {
-            double tmpRow[colSize];
             for (int i = 0; i < colSize; ++i) {
                 tmpRow[i] = augMat[colSize * row + i];
                 augMat[colSize * row + i] = augMat[colSize * pivot + i];
@@ -175,14 +176,12 @@ void invertParallelRaw(double *augMat, int size) {
             augMat[colSize * row + i] /= pivotVal;
         }
 
-        double rowCopy[colSize];
+
         for (int i = 0; i < size; ++i) {
             if (i != row) {
                 double llValue = augMat[colSize * i + row];
-                // get row of index "row"
-                for (int j = 0; j < colSize; ++j) {
-                    rowCopy[j] = augMat[colSize * row + j] * llValue;
-                    augMat[colSize * i + j] -= rowCopy[j];  // substitution on i slice
+                for (int j = 0; j < colSize; ++j) { // get row of index "row"
+                    augMat[colSize * i + j] -= augMat[colSize * row + j] * llValue;// substitution on i slice
                 }
             }
         }
@@ -229,19 +228,25 @@ int main(int argc, char **argv) {
     Matrix resMatrix(matrixDimension, matrixDimension);
     arrayToMatrix(augmentedMatrix, augMat, resMatrix);
 
+    cout << " -- Calculating Error --" << endl;
     Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
     printResult(matrixDimension, cronPar, lResPar);
+
+    cout << " -- De-allocation (cleaning) --" << endl;
+    delete[] augMat;
+
 
     return 0;
 }
 
-void arrayToMatrix(MatrixConcatCols &augmentedMatrix,  double *augMat,  Matrix &resMatrix) {
-    for(int i = 0; i < augmentedMatrix.cols() * augmentedMatrix.cols(); i++){
+void arrayToMatrix(MatrixConcatCols &augmentedMatrix, const double *augMat, const Matrix &resMatrix) {
+    for (int i = 0; i < augmentedMatrix.cols() * augmentedMatrix.cols(); i++) {
         augmentedMatrix.getDataArray()[i] = augMat[i];
     }
 
     for (int i = 0; i < resMatrix.rows(); ++i) {
-        resMatrix.getRowSlice(i) = augmentedMatrix.getDataArray()[slice(i * resMatrix.cols()*2 + resMatrix.cols(), resMatrix.cols(), 1)];
+        resMatrix.getRowSlice(i) = augmentedMatrix.getDataArray()[slice(i * resMatrix.cols() * 2 + resMatrix.cols(),
+                                                                        resMatrix.cols(), 1)];
     }
 }
 
@@ -268,6 +273,7 @@ Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2) {
     return lRes;
 }
 
+/// DEBUG ///
 void printAugMatrix1DArray(double *matrix, int size) {
     int colSize = size * 2;
     cout << "[" << endl;
