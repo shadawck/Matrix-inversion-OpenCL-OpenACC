@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <unistd.h>
 #include "Chrono.hpp"
+#include "../../../../../usr/include/c++/10/valarray"
 
 using namespace std;
 
@@ -22,6 +23,8 @@ void printResult(int matrixDimension, Chrono cron, Matrix &lRes);
 
 void printAugMatrix1DArray(double *matrix, int size);
 
+
+void arrayToMatrix(MatrixConcatCols &augmentedMatrix, double *augMat, Matrix &resMatrix);
 
 /**
  * Inverser la matrice par la méthode de Gauss-Jordan; implantation séquentielle.
@@ -68,9 +71,9 @@ void invertSequential(Matrix &mat) {
         }
     }
 
-//    for (int i = 0; i < mat.rows(); ++i) {
-//        mat.getRowSlice(i) = augmentedMatrix.getDataArray()[slice(i * colSize + mat.cols(), mat.cols(), 1)];
-//    }
+    for (int i = 0; i < mat.rows(); ++i) {
+        mat.getRowSlice(i) = augmentedMatrix.getDataArray()[slice(i * colSize + mat.cols(), mat.cols(), 1)];
+    }
 }
 
 /**
@@ -175,18 +178,15 @@ void invertParallelRaw(double *augMat, int size) {
         double rowCopy[colSize];
         for (int i = 0; i < size; ++i) {
             if (i != row) {
-                double llValue = augMat[colSize*i+row];
-                // get row
-                for(int j = 0; j < colSize; ++j){
-                    rowCopy[j] = augMat[colSize*row + j] * llValue;
-                    augMat[colSize*i+j] -= rowCopy[j];
-                    cout << rowCopy[j] << " " ;
+                double llValue = augMat[colSize * i + row];
+                // get row of index "row"
+                for (int j = 0; j < colSize; ++j) {
+                    rowCopy[j] = augMat[colSize * row + j] * llValue;
+                    augMat[colSize * i + j] -= rowCopy[j];  // substitution on i slice
                 }
-                cout << endl;
             }
         }
     }
-    printAugMatrix1DArray(augMat, size);
 }
 
 int main(int argc, char **argv) {
@@ -199,8 +199,6 @@ int main(int argc, char **argv) {
 
     MatrixRandom randomMatrix(matrixDimension, matrixDimension);
     const Matrix &copyRandomMatrix(randomMatrix);
-
-//    cout << randomMatrix.str() << endl;
     /**
     * Sequential execution
     */
@@ -218,18 +216,33 @@ int main(int argc, char **argv) {
      * openACC execution
      */
     cout << endl << " --- PARALLEL EXECUTION --- " << endl;
+
     Matrix parMatrix = Matrix(randomMatrix);
     MatrixConcatCols augmentedMatrix(parMatrix, MatrixIdentity(parMatrix.rows()));
-//    cout << augmentedMatrix.str() << endl;
-    double *mat = convertValArrayToDouble(augmentedMatrix.getDataArray());
+
+    double *augMat = convertValArrayToDouble(augmentedMatrix.getDataArray());
+
     auto cronPar = Chrono(true);
-    invertParallelRaw(mat, augmentedMatrix.rows());
+    invertParallelRaw(augMat, augmentedMatrix.rows());
     cronPar.pause();
 
-    Matrix lResPar = multiplyMatrix(parMatrix, copyRandomMatrix);
+    Matrix resMatrix(matrixDimension, matrixDimension);
+    arrayToMatrix(augmentedMatrix, augMat, resMatrix);
+
+    Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
     printResult(matrixDimension, cronPar, lResPar);
 
     return 0;
+}
+
+void arrayToMatrix(MatrixConcatCols &augmentedMatrix,  double *augMat,  Matrix &resMatrix) {
+    for(int i = 0; i < augmentedMatrix.cols() * augmentedMatrix.cols(); i++){
+        augmentedMatrix.getDataArray()[i] = augMat[i];
+    }
+
+    for (int i = 0; i < resMatrix.rows(); ++i) {
+        resMatrix.getRowSlice(i) = augmentedMatrix.getDataArray()[slice(i * resMatrix.cols()*2 + resMatrix.cols(), resMatrix.cols(), 1)];
+    }
 }
 
 void printResult(int matrixDimension, Chrono cron, Matrix &lRes) {
@@ -237,7 +250,6 @@ void printResult(int matrixDimension, Chrono cron, Matrix &lRes) {
     cout << "Erreur: " << lRes.getDataArray().sum() - matrixDimension << endl;
     cout << "Total execution time : " << cron.get() << endl;
 }
-
 
 double *convertValArrayToDouble(valarray<double> array) {
     auto *newArray = new double[array.size()];
@@ -258,13 +270,13 @@ Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2) {
 
 void printAugMatrix1DArray(double *matrix, int size) {
     int colSize = size * 2;
-    cout << "[";
+    cout << "[" << endl;
     for (int i = 0; i < size; ++i) {
-        cout << "[ ";
+        cout << "   [ ";
         for (int j = 0; j < colSize; ++j) {
             cout << matrix[colSize * i + j] << ", ";
         }
         cout << "]," << endl;
     }
-    cout << "]";
+    cout << "]" << endl;
 }
