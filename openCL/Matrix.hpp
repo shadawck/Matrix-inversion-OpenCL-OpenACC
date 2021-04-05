@@ -22,58 +22,58 @@ class Matrix {
 public:
 
     // Construire matrice iRows x iCols et initialiser avec des 0.
-    Matrix(int iRows, int iCols) : mRows(iRows), mCols(iCols), mData(0., iRows * iCols) {}
+    Matrix(size_t iRows, size_t iCols) : mRows(iRows), mCols(iCols), mData(0., iRows * iCols) {}
 
     // Affecter une matrice de même taille; s'assurer que les tailles sont identiques.
 
     // Accéder à la case (i, j) en lecture/écriture.
-    inline double &operator()(int iRow, int iCol) {
+    inline double &operator()(size_t iRow, size_t iCol) {
         return mData[(iRow * mCols) + iCol];
     }
 
     // Accéder à la case (i, j) en lecture seulement.
-    inline const double &operator()(int iRow, int iCol) const {
+    inline const double &operator()(size_t iRow, size_t iCol) const {
         return mData[(iRow * mCols) + iCol];
     }
 
     // Retourner le nombre de colonnes.
-    inline int cols() const { return mCols; }
+    [[nodiscard]] inline size_t cols() const { return mCols; }
 
     // Retourner le nombre de lignes.
-     inline int rows() const { return mRows; }
+    [[nodiscard]] inline size_t rows() const { return mRows; }
 
     // Retourner le tableau d'une colonne de la matrice.
-     valarray<double> getColumnCopy(int iCol) const {
+    [[nodiscard]] valarray<double> getColumnCopy(size_t iCol) const {
         assert(iCol < mCols);
         return mData[slice(iCol, mRows, mCols)];
     }
 
     // Retourner la slice d'une colonne de la matrice.
-    slice_array<double> getColumnSlice(int iCol) {
+    slice_array<double> getColumnSlice(size_t iCol) {
         assert(iCol < mCols);
         return mData[slice(iCol, mRows, mCols)];
     }
 
     // Retourner la slice d'une colonne de la matrice.
-     slice_array<double> getColumnSlice(int iCol) const {
+    [[nodiscard]] slice_array<double> getColumnSlice(size_t iCol) const {
         assert(iCol < mCols);
         return const_cast<Matrix *>(this)->mData[slice(iCol, mRows, mCols)];
     }
 
     // Retourner le tableau d'une rangée de la matrice.
-     valarray<double> getRowCopy(int iRow) const {
+    [[nodiscard]] valarray<double> getRowCopy(size_t iRow) const {
         assert(iRow < mRows);
         return mData[slice(iRow * mCols, mCols, 1)];
     }
 
     // Retourner la slice d'une rangée de la matrice.
-    slice_array<double> getRowSlice(int iRow) {
+    slice_array<double> getRowSlice(size_t iRow) {
         assert(iRow < mRows);
         return mData[slice(iRow * mCols, mCols, 1)];
     }
 
     // Retourner la slice d'une rangée de la matrice.
-     slice_array<double> getRowSlice(int iRow) const {
+    [[nodiscard]] slice_array<double> getRowSlice(size_t iRow) const {
         assert(iRow < mRows);
         return const_cast<Matrix *>(this)->mData[slice(iRow * mCols, mCols, 1)];
     }
@@ -82,40 +82,40 @@ public:
     valarray<double> &getDataArray() { return mData; }
 
     // Accéder au tableau interne de la matrice en lecture seulement.
-     const valarray<double> &getDataArray() const { return mData; }
+    [[nodiscard]] const valarray<double> &getDataArray() const { return mData; }
 
     // Permuter deux rangées de la matrice.
-    Matrix &swapRows(int iR1, int iR2);
+    Matrix &swapRows(size_t iR1, size_t iR2);
 
     // Permuter deux colonnes de la matrice.
-    Matrix &swapColumns(int iC1, int iC2);
+    Matrix &swapColumns(size_t iC1, size_t iC2);
 
     // Représenter la matrice sous la forme d'une chaîne de caractères.
     // Pratique pour le débuggage...
-     string str() const;
+    [[nodiscard]] string str() const;
 
 protected:
     // Nombre de rangées et de colonnes.
-    int mRows, mCols;
+    size_t mRows, mCols;
     valarray<double> mData;
 };
 
 // Construire une matrice identité.
 class MatrixIdentity : public Matrix {
 public:
-    explicit MatrixIdentity(int iSize);
+    explicit MatrixIdentity(size_t iSize);
 };
 
 // Construire une matrice aléatoire [0,1) iRows x iCols.
 // Utiliser srand pour initialiser le générateur de nombres.
 class MatrixRandom : public Matrix {
 public:
-    MatrixRandom(int iRows, int iCols);
+    MatrixRandom(size_t iRows, size_t iCols);
 };
 
 class MatrixExample : public Matrix {
 public:
-    MatrixExample(int iRows, int iCols);
+    MatrixExample(size_t iRows, size_t iCols);
 };
 
 // Construire une matrice en concaténant les colonnes de deux matrices de même hauteur.

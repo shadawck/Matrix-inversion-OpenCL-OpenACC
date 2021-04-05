@@ -1,29 +1,26 @@
 #include "Matrix.hpp"
-#include <ostream>
-# include <sstream>
+#include <sstream>
 
 using namespace std;
 
-// Permuter deux rangées de la matrice.
 
-#pragma acc routine worker
-Matrix &Matrix::swapRows(int iR1, int iR2) {
+// Permuter deux rangées de la matrice.
+Matrix &Matrix::swapRows(size_t iR1, size_t iR2) {
     // vérifier la validité des indices de rangée
-    assert(iR1 < rows() && iR2 < rows());
+    assert (iR1 < rows() && iR2 < rows());
     // tester la nécessité de permuter
     if (iR1 == iR2) return *this;
     // permuter les deux rangées
     valarray<double> lTmp(mData[slice(iR1 * cols(), cols(), 1)]);
     mData[slice(iR1 * cols(), cols(), 1)] = mData[slice(iR2 * cols(), cols(), 1)];
     mData[slice(iR2 * cols(), cols(), 1)] = lTmp;
-
     return *this;
 }
 
 // Permuter deux colonnes de la matrice.
-Matrix &Matrix::swapColumns(int iC1, int iC2) {
+Matrix &Matrix::swapColumns(size_t iC1, size_t iC2) {
     // vérifier la validité des indices de colonne
-    assert(iC1 < cols() && iC2 < cols());
+    assert (iC1 < cols() && iC2 < cols());
     // tester la nécessité de permuter
     if (iC1 == iC2) return *this;
     // permuter les deux rangées
@@ -37,10 +34,10 @@ Matrix &Matrix::swapColumns(int iC1, int iC2) {
 // Pratique pour le débuggage...
 string Matrix::str(void) const {
     ostringstream oss;
-    for (int i = 0; i < rows(); ++i) {
+    for (size_t i = 0; i < rows(); ++i) {
         if (i == 0) oss << "[[ ";
         else oss << " [ ";
-        for (int j = 0; j < cols(); ++j) {
+        for (size_t j = 0; j < cols(); ++j) {
             oss << (*this)(i, j);
             if (j + 1 != cols()) oss << ", ";
         }
@@ -51,27 +48,34 @@ string Matrix::str(void) const {
 }
 
 // Construire une matrice identité.
-MatrixIdentity::MatrixIdentity(int iSize) : Matrix(iSize, iSize) {
-    for (int i = 0; i < iSize; ++i) {
+MatrixIdentity::MatrixIdentity(size_t iSize) : Matrix(iSize, iSize) {
+    for (size_t i = 0; i < iSize; ++i) {
         (*this)(i, i) = 1.0;
     }
 }
 
 // Construire une matrice aléatoire [0,1) iRows x iCols.
 // Utiliser srand pour initialiser le générateur de nombres.
-MatrixRandom::MatrixRandom(int iRows, int iCols) : Matrix(iRows, iCols) {
-    for (int i = 0; i < mData.size(); ++i) {
+MatrixRandom::MatrixRandom(size_t iRows, size_t iCols) : Matrix(iRows, iCols) {
+    for (size_t i = 0; i < mData.size(); ++i) {
         mData[i] = (double) rand() / RAND_MAX;;
     }
 }
+
+MatrixExample::MatrixExample(size_t iRows, size_t iCols) : Matrix(iRows, iCols) {
+    for (size_t i = 0; i < mData.size(); ++i) {
+        mData[i] = (double) ((i + 2.0) * 2.0);
+    }
+}
+
 
 // Construire une matrice en concaténant les colonnes de deux matrices de même hauteur.
 MatrixConcatCols::MatrixConcatCols(const Matrix &iMat1, const Matrix &iMat2) : Matrix(iMat1.rows(),
                                                                                       iMat1.cols() + iMat2.cols()) {
     // vérifier la compatibilité des matrices
-    assert(iMat1.rows() == iMat2.rows());
+    assert (iMat1.rows() == iMat2.rows());
     // Pour chaque rangée
-    for (int i = 0; i < rows(); ++i) {
+    for (size_t i = 0; i < rows(); ++i) {
         // rangée i de la première matrice
         mData[slice(i * cols(), iMat1.cols(), 1)] = iMat1.getRowSlice(i);
         // rangée i de la seconde matrice
@@ -83,9 +87,9 @@ MatrixConcatCols::MatrixConcatCols(const Matrix &iMat1, const Matrix &iMat2) : M
 MatrixConcatRows::MatrixConcatRows(const Matrix &iMat1, const Matrix &iMat2) : Matrix(iMat1.rows() + iMat2.rows(),
                                                                                       iMat1.cols()) {
     // vérifier la compatibilité des matrices
-    assert(iMat1.cols() == iMat2.cols());
+    assert (iMat1.cols() == iMat2.cols());
     // Pour chaque colonne
-    for (int j = 0; j < cols(); ++j) {
+    for (size_t j = 0; j < cols(); ++j) {
         // colonne j de la première matrice
         mData[slice(j, iMat1.rows(), cols())] = iMat1.getColumnSlice(j);
         // colonne j de la seconde matrice

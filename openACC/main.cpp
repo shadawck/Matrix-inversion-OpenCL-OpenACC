@@ -8,17 +8,19 @@
 
 using namespace std;
 
-void findPivot(size_t row, MatrixConcatCols &augmentedMatrix, size_t &pivot);
+void findPivot(int row, MatrixConcatCols &augmentedMatrix, int &pivot);
 
 void splitAugmentedMatrix(Matrix &mat, MatrixConcatCols &augmentedMatrix);
 
 double *convertValArrayToDouble(valarray<double> array);
 
-void checkSingularity(const MatrixConcatCols &augmentedMatrix, size_t p, size_t k);
+void checkSingularity(const MatrixConcatCols &augmentedMatrix, int p, int k);
 
 Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2);
 
 void printResult(int matrixDimension, Chrono cron, Matrix &lRes);
+
+void printAugMatrix1DArray(double *matrix, int size);
 
 
 /**
@@ -28,35 +30,47 @@ void printResult(int matrixDimension, Chrono cron, Matrix &lRes);
 void invertSequential(Matrix &mat) {
     assert(mat.rows() == mat.cols());
     MatrixConcatCols augmentedMatrix(mat, MatrixIdentity(mat.rows()));
+    int rowSize = augmentedMatrix.rows();
+    int colSize = augmentedMatrix.cols();
 
-    // traiter chaque rangée
-    for (size_t row = 0; row < mat.rows(); ++row) {
+    {
+        for (int row = 0; row < mat.rows(); ++row) {
 
-        size_t pivot;
-        findPivot(row, augmentedMatrix, pivot);
-        checkSingularity(augmentedMatrix, pivot, row);
+            int pivot = row;
+            double lMax = fabs(augmentedMatrix(row, row));
 
-        // échanger la index courante avec celle du pivot
-        if (pivot != row) augmentedMatrix.swapRows(pivot, row);
+            for (int i = row; i < rowSize; ++i) {
+                if (fabs(augmentedMatrix(i, row)) > lMax) {
+                    lMax = fabs(augmentedMatrix(i, row));
+                    pivot = i;
+                }
+            }
 
-        double pivotValue = augmentedMatrix(row, row);
+            if (augmentedMatrix(pivot, row) == 0) {
+                throw runtime_error("Matrix is not invertible");
+            }
 
-        for (size_t col = 0; col < augmentedMatrix.cols(); ++col) {
-            // On divise les éléments de la rangée index par la valeur du pivot.
-            // Ainsi, augmentedMatrix(index,index) deviendra égal à 1.
-            augmentedMatrix(row, col) /= pivotValue;
-        }
+            if (pivot != row) {
+                augmentedMatrix.swapRows(pivot, row);
+            }
 
-        for (size_t i = 0; i < augmentedMatrix.rows(); ++i) {         // Pour chaque rangée...
-            if (i != row) { // ...différente de index
-                double llValue = augmentedMatrix(i, row);
-                // On soustrait la rangée index multipliée par l'élément index de la rangée courante
-                augmentedMatrix.getRowSlice(i) -= augmentedMatrix.getRowCopy(row) * llValue;
+            double pivotValue = augmentedMatrix(row, row);
+
+            for (int i = 0; i < colSize; ++i) {
+                augmentedMatrix(row, i) /= pivotValue;
+            }
+            for (int i = 0; i < rowSize; ++i) {
+                if (i != row) {
+                    double llValue = augmentedMatrix(i, row);
+                    augmentedMatrix.getRowSlice(i) -= augmentedMatrix.getRowCopy(row) * llValue;
+                }
             }
         }
     }
-    // On copie la partie droite de la matrice AI ainsi transformée dans la matrice courante (this).
-    splitAugmentedMatrix(mat, augmentedMatrix);
+
+//    for (int i = 0; i < mat.rows(); ++i) {
+//        mat.getRowSlice(i) = augmentedMatrix.getDataArray()[slice(i * colSize + mat.cols(), mat.cols(), 1)];
+//    }
 }
 
 /**
@@ -67,37 +81,111 @@ void invertSequential(Matrix &mat) {
 void invertParallel(Matrix &mat) {
     assert(mat.rows() == mat.cols());
     MatrixConcatCols augmentedMatrix(mat, MatrixIdentity(mat.rows()));
+    int rowSize = augmentedMatrix.rows();
+    int colSize = augmentedMatrix.cols();
 
-    // traiter chaque rangée
-#pragma acc kernels
-#pragma acc loop independent
-    for (size_t row = 0; row < mat.rows(); ++row) {
+    for (int row = 0; row < mat.rows(); ++row) {
+        int pivot = row;
+        double lMax = fabs(augmentedMatrix(row, row));
 
-        size_t pivot;
-        findPivot(row, augmentedMatrix, pivot);
-        checkSingularity(augmentedMatrix, pivot, row);
+//        Chrono cron1 = Chrono(true);
+        for (int i = row; i < rowSize; ++i) {
+            if (fabs(augmentedMatrix(i, row)) > lMax) {
+                lMax = fabs(augmentedMatrix(i, row));
+                pivot = i;
+            }
+        }
 
-        // échanger la index courante avec celle du pivot
-        if (pivot != row) augmentedMatrix.swapRows(pivot, row);
+//        cron1.pause();
+//        cout << "Cron1 : " << cron1.get() << endl;
+
+        if (augmentedMatrix(pivot, row) == 0) {
+            throw runtime_error("Matrix is not invertible");
+        }
+
+        if (pivot != row) {
+            augmentedMatrix.swapRows(pivot, row);
+        }
 
         double pivotValue = augmentedMatrix(row, row);
 
-        for (size_t col = 0; col < augmentedMatrix.cols(); ++col) {
-            // On divise les éléments de la rangée index par la valeur du pivot.
-            // Ainsi, augmentedMatrix(index,index) deviendra égal à 1.
+//        Chrono cron2 = Chrono(true);
+
+        for (int col = 0; col < colSize; ++col) {
             augmentedMatrix(row, col) /= pivotValue;
         }
+//        cron2.pause();
+//        cout << "Cron2 : " << cron2.get() << endl;
 
-        for (size_t i = 0; i < augmentedMatrix.rows(); ++i) {         // Pour chaque rangée...
-            if (i != row) { // ...différente de index
+//      Chrono cron3 = Chrono(true);
+
+
+        for (int i = 0; i < rowSize; ++i) {
+            if (i != row) {
                 double llValue = augmentedMatrix(i, row);
-                // On soustrait la rangée index multipliée par l'élément index de la rangée courante
                 augmentedMatrix.getRowSlice(i) -= augmentedMatrix.getRowCopy(row) * llValue;
             }
         }
+
+//        cron3.pause();
+//        cout << "Cron3 : " <<  cron3.get() << endl;
     }
-    // On copie la partie droite de la matrice AI ainsi transformée dans la matrice courante (this).
-    splitAugmentedMatrix(mat, augmentedMatrix);
+
+
+//    Chrono cron4 = Chrono(true);
+    for (int i = 0; i < mat.rows(); ++i) {
+        mat.getRowSlice(i) = augmentedMatrix.getDataArray()[slice(i * colSize + mat.cols(), mat.cols(), 1)];
+    }
+//    cron4.pause();
+//    cout << "Cron4 : " << cron4.get() << endl;
+}
+
+void invertParallelRaw(double *augMat, int size) {
+    int colSize = size * 2; // number of column and size of a row
+
+    for (int row = 0; row < size; ++row) {
+        int pivot = row;
+        double lMax = fabs(augMat[colSize * row + row]);
+
+        for (int i = row; i < size; ++i) {
+            if (fabs(augMat[colSize * i + row]) > lMax) {
+                lMax = fabs(augMat[colSize * i + row]);
+                pivot = i; // row of pivot
+            }
+        }
+
+        if (augMat[colSize * row + row] == 0) {
+            throw runtime_error("Matrix is not invertible");
+        }
+
+        if (pivot != row) {
+            double tmpRow[colSize];
+            for (int i = 0; i < colSize; ++i) {
+                tmpRow[i] = augMat[colSize * row + i];
+                augMat[colSize * row + i] = augMat[colSize * pivot + i];
+                augMat[colSize * pivot + i] = tmpRow[i];
+            }
+        }
+
+        double pivotVal = augMat[colSize * row + row];
+        for (int i = 0; i < colSize; ++i) {
+            augMat[colSize * row + i] /= pivotVal;
+        }
+
+        double rowCopy[colSize];
+        for (int i = 0; i < size; ++i) {
+            if (i != row) {
+                double llValue = augMat[colSize*i+row];
+                // get row
+                for(int j = 0; j < colSize; ++j){
+                    rowCopy[j] = augMat[colSize*row + j];
+                }
+
+
+            }
+        }
+    }
+    printAugMatrix1DArray(augMat, size);
 }
 
 int main(int argc, char **argv) {
@@ -111,7 +199,7 @@ int main(int argc, char **argv) {
     MatrixRandom randomMatrix(matrixDimension, matrixDimension);
     const Matrix &copyRandomMatrix(randomMatrix);
 
-
+//    cout << randomMatrix.str() << endl;
     /**
     * Sequential execution
     */
@@ -125,15 +213,16 @@ int main(int argc, char **argv) {
     Matrix lResSeq = multiplyMatrix(seqMatrix, copyRandomMatrix);
     printResult(matrixDimension, cronSeq, lResSeq);
 
-
     /**
      * openACC execution
      */
     cout << endl << " --- PARALLEL EXECUTION --- " << endl;
     Matrix parMatrix = Matrix(randomMatrix);
-
+    MatrixConcatCols augmentedMatrix(parMatrix, MatrixIdentity(parMatrix.rows()));
+//    cout << augmentedMatrix.str() << endl;
+    double *mat = convertValArrayToDouble(augmentedMatrix.getDataArray());
     auto cronPar = Chrono(true);
-    invertParallel(parMatrix);
+    invertParallelRaw(mat, augmentedMatrix.rows());
     cronPar.pause();
 
     Matrix lResPar = multiplyMatrix(parMatrix, copyRandomMatrix);
@@ -148,23 +237,6 @@ void printResult(int matrixDimension, Chrono cron, Matrix &lRes) {
     cout << "Total execution time : " << cron.get() << endl;
 }
 
-void splitAugmentedMatrix(Matrix &mat, MatrixConcatCols &augmentedMatrix) {
-    for (size_t i = 0; i < mat.rows(); ++i) {
-        mat.getRowSlice(i) = augmentedMatrix.getDataArray()[slice(i * augmentedMatrix.cols() + mat.cols(), mat.cols(),
-                                                                  1)];
-    }
-}
-
-void findPivot(size_t row, MatrixConcatCols &augmentedMatrix, size_t &pivot) {
-    pivot = row;
-    double lMax = fabs(augmentedMatrix(row, row));
-    for (size_t i = row; i < augmentedMatrix.rows(); ++i) {
-        if (fabs(augmentedMatrix(i, row)) > lMax) {
-            lMax = fabs(augmentedMatrix(i, row));
-            pivot = i;
-        }
-    }
-}
 
 double *convertValArrayToDouble(valarray<double> array) {
     auto *newArray = new double[array.size()];
@@ -172,19 +244,26 @@ double *convertValArrayToDouble(valarray<double> array) {
     return newArray;
 }
 
-void checkSingularity(const MatrixConcatCols &augmentedMatrix, size_t p, size_t k) {
-    if (augmentedMatrix(p, k) == 0) {
-        throw runtime_error("Matrix is not invertible");
-    }
-}
-
 Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2) {
     assert(iMat1.cols() == iMat2.rows());
     Matrix lRes(iMat1.rows(), iMat2.cols());
-    for (size_t i = 0; i < lRes.rows(); ++i) {
-        for (size_t j = 0; j < lRes.cols(); ++j) {
+    for (int i = 0; i < lRes.rows(); ++i) {
+        for (int j = 0; j < lRes.cols(); ++j) {
             lRes(i, j) = (iMat1.getRowCopy(i) * iMat2.getColumnCopy(j)).sum();
         }
     }
     return lRes;
+}
+
+void printAugMatrix1DArray(double *matrix, int size) {
+    int colSize = size * 2;
+    cout << "[";
+    for (int i = 0; i < size; ++i) {
+        cout << "[ ";
+        for (int j = 0; j < colSize; ++j) {
+            cout << matrix[colSize * i + j] << ", ";
+        }
+        cout << "]," << endl;
+    }
+    cout << "]";
 }

@@ -6,40 +6,43 @@
 // OpenCL includes
 //#include <OpenCL/cl.h>
 #include <CL/cl.h>
+#include "Matrix.hpp"
 
 // Project includes
 
 // Constants, globals
-const int ELEMENTS = 2048;   // elements in each vector
 
 // namespace
 using namespace std;
 
 // Signatures
 char* readSource(const char *sourceFilename);
+double *convertValArrayToDouble(valarray<double> array);
 
 int main(int argc, char ** argv)
 {
-    printf("Running Vector Addition program\n\n");
+    srand((unsigned) time(nullptr));
 
-    size_t datasize = sizeof(int)*ELEMENTS;
+    printf("Running Matrix Inversion program\n\n");
 
-    int *A, *B;   // Input arrays
-    int *C;       // Output array
-
-    // Allocate space for input/output data
-    A = (int*)malloc(datasize);
-    B = (int*)malloc(datasize);
-    C = (int*)malloc(datasize);
-    if(A == nullptr || B == nullptr || C == nullptr) {
-        perror("malloc");
-        exit(-1);
+    int matrixDimension = 5;
+    if (argc == 2) {
+        matrixDimension = atoi(argv[1]);
     }
 
-    // Initialize the input data
-    for(int i = 0; i < ELEMENTS; i++) {
-        A[i] = i;
-        B[i] = i;
+    size_t datasize = sizeof(double)* matrixDimension * matrixDimension;
+
+    MatrixRandom randomMatrix(matrixDimension, matrixDimension);
+    const Matrix &copyRandomMatrix(randomMatrix);
+    double *matOutput;
+
+    // input for openCL
+    double *matInput = convertValArrayToDouble(randomMatrix.getDataArray());
+    matOutput = (double*)malloc(datasize);
+
+    if(matOutput == nullptr) {
+        perror("malloc");
+        exit(-1);
     }
 
     cl_int status;  // use as return value for most OpenCL functions
@@ -97,9 +100,8 @@ int main(int argc, char ** argv)
     cl_device_id *devices;
 
     // Retrive the number of devices present
-    status = clGetDeviceIDs(platforms[1], CL_DEVICE_TYPE_GPU, 1, nullptr,
+    status = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, 1, nullptr,
                             &numDevices);
-
 
     if(status != CL_SUCCESS) {
         printf("clGetDeviceIDs failed\n");
@@ -120,7 +122,7 @@ int main(int argc, char ** argv)
     }
 
     // Fill in devices
-    status = clGetDeviceIDs(platforms[1], CL_DEVICE_TYPE_GPU, numDevices,
+    status = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, numDevices,
                             devices, nullptr);
     if(status != CL_SUCCESS) {
         printf("clGetDeviceIDs failed\n");
@@ -165,29 +167,21 @@ int main(int argc, char ** argv)
         exit(-1);
     }
 
-    cl_mem d_A, d_B;  // Input buffers on device
-    cl_mem d_C;       // Output buffer on device
+    cl_mem d_matInput;       // Input buffers on device
+    cl_mem d_matOutput;              // Output buffer on device
 
-    // Create a buffer object (d_A) that contains the data from the host ptr A
-    d_A = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,
-                         datasize, A, &status);
-    if(status != CL_SUCCESS || d_A == nullptr) {
-        printf("clCreateBuffer failed\n");
-        exit(-1);
-    }
-
-    // Create a buffer object (d_B) that contains the data from the host ptr B
-    d_B = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,
-                         datasize, B, &status);
-    if(status != CL_SUCCESS || d_B == nullptr) {
+    // Create a buffer object (d_matInput) that contains the data from the host ptr matInput
+    d_matInput = clCreateBuffer(context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,
+                         datasize, matInput, &status);
+    if(status != CL_SUCCESS || d_matInput == nullptr) {
         printf("clCreateBuffer failed\n");
         exit(-1);
     }
 
     // Create a buffer object (d_C) with enough space to hold the output data
-    d_C = clCreateBuffer(context, CL_MEM_READ_WRITE,
+    d_matOutput = clCreateBuffer(context, CL_MEM_READ_WRITE,
                          datasize, nullptr, &status);
-    if(status != CL_SUCCESS || d_C == nullptr) {
+    if(status != CL_SUCCESS || d_matOutput == nullptr) {
         printf("clCreateBuffer failed\n");
         exit(-1);
     }
@@ -197,7 +191,7 @@ int main(int argc, char ** argv)
     char *source;
     cout << filesystem::current_path() << endl;
 
-    const char *sourceFile = "VectorAdd.cl";
+    const char *sourceFile = "inversion.cpp";
     // This function reads in the source code of the program
     source = readSource(sourceFile);
 
@@ -263,9 +257,8 @@ int main(int argc, char ** argv)
     }
 
     // Associate the input and output buffers with the kernel
-    status  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_A);
-    status |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_B);
-    status |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_C);
+    status  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_matInput);
+    status |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_matOutput);
     if(status != CL_SUCCESS) {
         printf("clSetKernelArg failed\n");
         exit(-1);
@@ -274,25 +267,29 @@ int main(int argc, char ** argv)
     // Define an index space (global work size) of threads for execution.
     // A workgroup size (local work size) is not required, but can be used.
     size_t globalWorkSize[1];  // There are ELEMENTS threads
-    globalWorkSize[0] = ELEMENTS;
+    globalWorkSize[0] = matrixDimension;
+    // Determine a way to size workgroup according to some logic
+    size_t localWorkSize[1];
+    localWorkSize[0] = 8;
 
     // Execute the kernel.
     // 'globalWorkSize' is the 1D dimension of the work-items
     status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, nullptr, globalWorkSize,
                                     nullptr, 0, nullptr, nullptr);
+
     if(status != CL_SUCCESS) {
         printf("clEnqueueNDRangeKernel failed\n");
         exit(-1);
     }
 
-    // Read the OpenCL output buffer (d_C) to the host output array (C)
-    clEnqueueReadBuffer(cmdQueue, d_C, CL_TRUE, 0, datasize, C,
+    // Read the OpenCL output buffer (d_matOutput) to the host output array (C)
+    clEnqueueReadBuffer(cmdQueue, d_matOutput, CL_TRUE, 0, datasize, matOutput,
                         0, nullptr, nullptr);
 
     // Verify correctness
     bool result = true;
-    for(int i = 0; i < ELEMENTS; i++) {
-        if(C[i] != i+i) {
+    for(int i = 0; i < matrixDimension; i++) {
+        if(matOutput[i] != i+i) {
             result = false;
             break;
         }
@@ -307,14 +304,12 @@ int main(int argc, char ** argv)
     clReleaseKernel(kernel);
     clReleaseProgram(program);
     clReleaseCommandQueue(cmdQueue);
-    clReleaseMemObject(d_A);
-    clReleaseMemObject(d_B);
-    clReleaseMemObject(d_C);
+    clReleaseMemObject(d_matInput);
+    clReleaseMemObject(d_matOutput);
     clReleaseContext(context);
 
-    free(A);
-    free(B);
-    free(C);
+    free(matInput);
+    free(matOutput);
     free(source);
     free(platforms);
     free(devices);
@@ -330,7 +325,7 @@ char* readSource(const char *sourceFilename) {
     char *source;
 
     fp = fopen(sourceFilename, "rb");
-    if(fp == NULL) {
+    if(fp == nullptr) {
         printf("Could not open kernel file: %s\n", sourceFilename);
         exit(-1);
     }
@@ -354,7 +349,7 @@ char* readSource(const char *sourceFilename) {
     }
 
     source = (char*)malloc(size+1);
-    if(source == NULL) {
+    if(source == nullptr) {
         printf("Error allocating %d bytes for the program source\n", size+1);
         exit(-1);
     }
@@ -368,4 +363,9 @@ char* readSource(const char *sourceFilename) {
     source[size] = '\0';
 
     return source;
+}
+double *convertValArrayToDouble(valarray<double> array) {
+    auto *newArray = new double[array.size()];
+    copy(begin(array), end(array), newArray);
+    return newArray;
 }
