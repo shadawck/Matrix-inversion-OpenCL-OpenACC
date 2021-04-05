@@ -178,10 +178,11 @@ void invertParallelRaw(double *augMat, int size) {
                 double llValue = augMat[colSize*i+row];
                 // get row
                 for(int j = 0; j < colSize; ++j){
-                    rowCopy[j] = augMat[colSize*row + j];
+                    rowCopy[j] = augMat[colSize*row + j] * llValue;
+                    augMat[colSize*i+j] -= rowCopy[j];
+                    cout << rowCopy[j] << " " ;
                 }
-
-
+                cout << endl;
             }
         }
     }
