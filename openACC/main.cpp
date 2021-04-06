@@ -13,7 +13,7 @@ void printResult(int matrixDimension, Chrono cron, Matrix &lRes);
 
 void printResultMin(int matrixDimension, Chrono cron);
 
-void arrayToMatrix(MatrixConcatCols &augmentedMatrix, const double *augMat, const Matrix &resMatrix);
+void augArrayToSquareMatrix(MatrixConcatCols &augmentedMatrix, const double *augMat, const Matrix &resMatrix);
 
 Matrix multiArrayToMatrix(double **multiArray, int height, int width);
 
@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
     cronPar.pause();
 
 //    Matrix resMatrix(matrixDimension, matrixDimension);
-//    arrayToMatrix(augmentedMatrix, augMat, resMatrix);
+//    augArrayToSquareMatrix(augmentedMatrix, augMat, resMatrix);
 //    cout << " -- Calculating Error Solution 1 --" << endl;
 //    Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
 //    printResult(matrixDimension, cronPar, lResPar);
@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void arrayToMatrix(MatrixConcatCols &augmentedMatrix, const double *augMat, const Matrix &resMatrix) {
+void augArrayToSquareMatrix(MatrixConcatCols &augmentedMatrix, const double *augMat, const Matrix &resMatrix) {
     for (int i = 0; i < augmentedMatrix.cols() * augmentedMatrix.rows(); i++) {
         augmentedMatrix.getDataArray()[i] = augMat[i];
     }
