@@ -50,7 +50,6 @@ int main(int argc, char **argv) {
     double *newMat = convertValArrayToDouble(randomMatrix.getDataArray());
     double *eyeResMat = convertValArrayToDouble(MatrixIdentity(randomMatrix.rows()).getDataArray());
     int size = randomMatrix.rows();
-    cout << "Size on host :" << size << endl;
 
     if (newMat == nullptr || eyeResMat == nullptr) {
         perror("malloc");
@@ -178,24 +177,19 @@ int main(int argc, char **argv) {
     cl_mem d_eyeResMat;    /// Identity Matrix will transform to inverse matrix after inversion
 
     // Create a buffer object (d_newMat) that contains the data from the host ptr newMat
-    d_newMat = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, datasize, newMat, &status);
+    d_newMat = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, datasize, newMat, &status);
     if (status != CL_SUCCESS || d_newMat == nullptr) {
         printf("clCreateBuffer failed\n");
         exit(-1);
     }
 
     // Create a buffer object (d_eyeResMat) with enough space to hold the output data
-    d_eyeResMat = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, datasize, eyeResMat, &status);
+    d_eyeResMat = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, datasize, eyeResMat, &status);
     if (status != CL_SUCCESS || d_eyeResMat == nullptr) {
         printf("clCreateBuffer failed\n");
         exit(-1);
     }
 
-//    void *newMatInput, *eyeResMatOutput;
-//    newMatInput = clEnqueueMapBuffer(cmdQueue, d_newMat, CL_TRUE, CL_MAP_WRITE, 0, datasize, 0, nullptr, nullptr,
-//                                     &status);
-//    eyeResMatOutput = clEnqueueMapBuffer(cmdQueue, d_eyeResMat, CL_TRUE, CL_MAP_WRITE, 0, datasize, 0, nullptr, nullptr,
-//                                         &status);
 
     // Create a program. The 'source' string is the code from the
     // inversion.cpp file.
@@ -203,7 +197,7 @@ int main(int argc, char **argv) {
     char *source;
     const char *sourceFile = "inversion.cpp";
     source = readSource(sourceFile);
-     cout << source << endl;
+    cout << source << endl;
     program = clCreateProgramWithSource(context, 1, (const char **) &source,
                                         nullptr, &status);
     if (status != CL_SUCCESS) {
@@ -270,19 +264,20 @@ int main(int argc, char **argv) {
     // A workgroup size (local work size) is not required, but can be used.
     size_t globalWorkSize[1];  // There are ELEMENTS threads
     globalWorkSize[0] = matrixDimension;
-    size_t localWorkSize[1];
-    localWorkSize[0] = matrixDimension;
+//    size_t localWorkSize[1];
+//    localWorkSize[0] = matrixDimension;
 
     // Execute the kernel.
     // 'globalWorkSize' is the 1D dimension of the work-items
     cl_event event;
+
 
     cout << "--> Starting Kernel execution" << endl;
     double accTimeIteration = 0;  /// Accumulate time
     for (int i = 0; i < matrixDimension; i++) {
         status |= clSetKernelArg(kernel, 3, sizeof(cl_int), &i); /// row index that can't be parallelized
         status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, nullptr, globalWorkSize,
-                                        localWorkSize, 0, nullptr, &event);
+                                        nullptr, 0, nullptr, &event);
 
         /// EVENT PROFILING and TIME MEASUREMENT ///
         if (status != CL_SUCCESS) {
@@ -306,19 +301,23 @@ int main(int argc, char **argv) {
 
     cout << "--> Writing result" << endl;
     // Don't need to gather newMat (now an identity matrix)
-    // clEnqueueReadBuffer(cmdQueue, d_newMat, CL_TRUE, 0, datasize, newMat, 0, nullptr, &event);
+    //  clEnqueueReadBuffer(cmdQueue, d_newMat, CL_TRUE, 0, datasize, newMat, 0, nullptr, &event);
 
     // Read the inversed matrix buffer (d_eyeResMat). Need to wait for kernel to end execution before reading matrix; so add &event signal.
     clEnqueueReadBuffer(cmdQueue, d_eyeResMat, CL_TRUE, 0, datasize, eyeResMat, 0, nullptr, &event);
 
-//    clEnqueueUnmapMemObject(cmdQueue, d_newMat, newMatInput, 0, nullptr, &event);
-//    clEnqueueUnmapMemObject(cmdQueue, d_eyeResMat, eyeResMatOutput, 0, nullptr, &event);
+//    void *newMatInput, *eyeResMatOutput;
+//    newMatInput = clEnqueueMapBuffer(cmdQueue, d_newMat, CL_FALSE, CL_MAP_READ, 0, datasize, 0, nullptr, nullptr,&status);
+//    eyeResMatOutput = clEnqueueMapBuffer(cmdQueue, d_eyeResMat, CL_FALSE, CL_MAP_READ, 0, datasize, 0, nullptr, nullptr,&status);
+//    clEnqueueUnmapMemObject(cmdQueue, d_newMat, newMatInput, 0, nullptr, nullptr);
+//    clEnqueueUnmapMemObject(cmdQueue, d_eyeResMat, eyeResMatOutput, 0, nullptr, nullptr);
 
-    cout << endl << " --- OPENCL execution --- " << endl;
-    Matrix resMatrix = arrayToMatrix(eyeResMat, size);
-    cout << "--> Error computing" << endl;
-    Matrix multMatrix = multiplyMatrix(resMatrix, copyRandomMatrix);
-    printResult(size, accTimeIteration, multMatrix);
+//    cout << endl << " --- OPENCL execution --- " << endl;
+//    Matrix resMatrix = arrayToMatrix(eyeResMat, size);
+//    cout << "--> Error computing" << endl;
+//    Matrix multMatrix = multiplyMatrix(resMatrix, copyRandomMatrix);
+//    printResult(size, accTimeIteration, multMatrix);
+    printResultMin(size, accTimeIteration);
 
 //    cout << endl << "Inversed matrix: " << endl << arrayToMatrix(newMat, size).str() << endl;
 
