@@ -13,7 +13,6 @@ __kernel void inversion(__global double *mat,
         double currentScale = mat[size * idx + index];
 
         for (int j = 0; j < size; ++j) {
-//            printf("thread %d handle index %d for iteration %d\n", idx, j, index);
             mat[size * idx + j] = mat[size * idx + j] - currentScale * mat[size * index + j];
             eyeResMat[size * idx + j] = eyeResMat[size * idx + j] - currentScale * eyeResMat[size * index + j];
         }

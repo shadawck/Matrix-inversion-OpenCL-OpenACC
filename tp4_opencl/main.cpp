@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
     char *source;
     const char *sourceFile = "inversion.cpp";
     source = readSource(sourceFile);
-    cout << source << endl;
+//    cout << source << endl;
     program = clCreateProgramWithSource(context, 1, (const char **) &source,
                                         nullptr, &status);
     if (status != CL_SUCCESS) {
