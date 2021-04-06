@@ -11,6 +11,7 @@ __kernel void inversion(__global double *mat,
     mat[size * index + idx] *= scale;
     eyeResMat[size * index + idx] *= scale;
 
+
     if (idx != index) {
         double currentScale = mat[size * idx + index];
 

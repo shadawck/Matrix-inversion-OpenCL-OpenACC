@@ -4,7 +4,7 @@ project(pp_tp4)
 find_package(OpenCL REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
-configure_file(inversion.cpp ${CMAKE_BINARY_DIR} COPYONLY)
+configure_file(inversion.cpp ${CMAKE_BINARY_DIR}/tp4_opencl COPYONLY)
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -O3")
 

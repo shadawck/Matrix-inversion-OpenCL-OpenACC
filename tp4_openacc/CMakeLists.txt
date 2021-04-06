@@ -9,4 +9,4 @@ set(CMAKE_CXX_COMPILER "${PG_PATH}/pgc++")
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -fast -Minfo=all,accel,intensity,ccff  -Mcuda=cuda11.2 -ta=tesla:managed")
 
-add_executable(pp_openacc main.cpp Matrix.cpp ${CMAKE_CXX_COMPILER})
+add_executable(pp_openacc main.cpp Matrix.cpp)

@@ -77,62 +77,71 @@ void invertSequential(Matrix &mat) {
  * Invert matrix with Gauss Jordan method
  * Raw (without Matrix class) && OPENACC implementation
  * @param mat Original matrix
+ *
+ * Solution en prenant le programme sequential original comme base. Il se trouve que la classe Matrix
+ * et la facon dont est construit le programme nous gêne. On prefere donc refaire le programme initial avec une solution
+ * qui maximise independence des boucles pour faciliter le caclul sur GPU
  */
-void invertParallelRaw(double *augMat, int size) {
-    int colSize = size * 2; // number of column and size of a row
+//void invertParallelRaw(double *augMat, int size) {
+//    int colSize = size * 2; // number of column and size of a row
+//
+//    // Use static array so dont need to deallocate. Will be release after loop
+//
+//    for (int row = 0; row < size; ++row) {
+//#pragma acc kernels
+//        {
+//            int pivot = row;
+//            double lMax = fabs(augMat[colSize * row + row]);
+//
+//#pragma acc for independent
+//            for (int i = row; i < size; ++i) {
+//                if (fabs(augMat[colSize * i + row]) > lMax) {
+//                    lMax = fabs(augMat[colSize * i + row]);
+//                    pivot = i; // row of pivot
+//                }
+//            }
+//
+//            if (augMat[colSize * row + row] == 0) {
+//                throw runtime_error("Matrix is not invertible");
+//            }
+//
+//            if (pivot != row) {
+//#pragma acc for present(augMat[0:size*colSize])
+//                for (int i = 0; i < colSize; ++i) {
+//                    /// Arithetic operation
+//                    augMat[colSize * row + i] = augMat[colSize * row + i] + augMat[colSize * pivot + i];
+//                    augMat[colSize * pivot + i] = augMat[colSize * row + i] - augMat[colSize * pivot + i];
+//                    augMat[colSize * row + i] = augMat[colSize * row + i] - augMat[colSize * pivot + i];
+//                }
+//            }
+//
+//            double pivotVal = augMat[colSize * row + row];
+//
+//#pragma acc for independent
+//            for (int i = 0; i < colSize; ++i) {
+//                augMat[colSize * row + i] /= pivotVal;
+//            }
+//
+//#pragma acc for independent
+//            for (int i = 0; i < size; ++i) {
+//                if (i != row) {
+//                    double llValue = augMat[colSize * i + row];
+//                    for (int j = 0; j < colSize; ++j) { // get row of index "row"
+//                        augMat[colSize * i + j] -= augMat[colSize * row + j] * llValue;// substitution on i slice
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
 
-    // Use static array so dont need to deallocate. Will be release after loop
-
-    for (int row = 0; row < size; ++row) {
-#pragma acc kernels
-        {
-            int pivot = row;
-            double lMax = fabs(augMat[colSize * row + row]);
-
-#pragma acc for independent
-            for (int i = row; i < size; ++i) {
-                if (fabs(augMat[colSize * i + row]) > lMax) {
-                    lMax = fabs(augMat[colSize * i + row]);
-                    pivot = i; // row of pivot
-                }
-            }
-
-            if (augMat[colSize * row + row] == 0) {
-                throw runtime_error("Matrix is not invertible");
-            }
-
-            if (pivot != row) {
-#pragma acc for present(augMat[0:size*colSize])
-                for (int i = 0; i < colSize; ++i) {
-                    /// Arithetic operation
-                    augMat[colSize * row + i] = augMat[colSize * row + i] + augMat[colSize * pivot + i];
-                    augMat[colSize * pivot + i] = augMat[colSize * row + i] - augMat[colSize * pivot + i];
-                    augMat[colSize * row + i] = augMat[colSize * row + i] - augMat[colSize * pivot + i];
-                }
-            }
-
-            double pivotVal = augMat[colSize * row + row];
-
-#pragma acc for independent
-            for (int i = 0; i < colSize; ++i) {
-                augMat[colSize * row + i] /= pivotVal;
-            }
-
-#pragma acc for independent
-            for (int i = 0; i < size; ++i) {
-                if (i != row) {
-                    double llValue = augMat[colSize * i + row];
-                    for (int j = 0; j < colSize; ++j) { // get row of index "row"
-                        augMat[colSize * i + j] -= augMat[colSize * row + j] * llValue;// substitution on i slice
-                    }
-                }
-            }
-        }
-    }
-}
-
+/***
+ * Openacc solution with independent loop
+ *  * @param mat
+ * @param eyeResMat
+ * @param size
+ */
 void bruteForce(double **mat, double **eyeResMat, int size) {
-
     for (int row = 0; row < size; ++row) {
 #pragma acc kernels
         {
@@ -187,31 +196,31 @@ int main(int argc, char **argv) {
     printResultMin(matrixDimension, cronSeq);
 
     /**
-     * openACC NUMERO 1 execution
+     * tp4_openacc NUMERO 1 execution
      */
-    cout << endl << " --- PARALLEL EXECUTION SOLUTION 1 --- " << endl;
-
-    MatrixConcatCols augmentedMatrix(parMatrix, MatrixIdentity(parMatrix.rows()));
-
-    auto *augMat = (double *) malloc(matrixDimension * matrixDimension * 2 * sizeof(double));
-    augMat = convertValArrayToDouble(augmentedMatrix.getDataArray());
-
-    auto cronPar = Chrono(true);
-    invertParallelRaw(augMat, augmentedMatrix.rows());
-    cronPar.pause();
+//    cout << endl << " --- PARALLEL EXECUTION SOLUTION 1 --- " << endl;
+//
+//    MatrixConcatCols augmentedMatrix(parMatrix, MatrixIdentity(parMatrix.rows()));
+//
+//    auto *augMat = (double *) malloc(matrixDimension * matrixDimension * 2 * sizeof(double));
+//    augMat = convertValArrayToDouble(augmentedMatrix.getDataArray());
+//
+//    auto cronPar = Chrono(true);
+//    invertParallelRaw(augMat, augmentedMatrix.rows());
+//    cronPar.pause();
 
 //    Matrix resMatrix(matrixDimension, matrixDimension);
 //    augArrayToSquareMatrix(augmentedMatrix, augMat, resMatrix);
 //    cout << " -- Calculating Error Solution 1 --" << endl;
 //    Matrix lResPar = multiplyMatrix(resMatrix, copyRandomMatrix);
 //    printResult(matrixDimension, cronPar, lResPar);
-    printResultMin(matrixDimension, cronPar);
-
+//    printResultMin(matrixDimension, cronPar);
+//    delete[] augMat;
     /**
-     * openACC SOLUTION 2 execution
+     * tp4_openacc SOLUTION 2 execution
      */
 
-    cout << endl << " --- PARALLEL EXECUTION SOLUTION 2 --- " << endl;
+    cout << endl << " --- PARALLEL EXECUTION --- " << endl;
 
     double **newMat = MatrixTo2DArray(parMatrix);
     double **eyeResMat = MatrixTo2DArray(MatrixIdentity(parMatrix.rows()));
@@ -220,21 +229,21 @@ int main(int argc, char **argv) {
     bruteForce(newMat, eyeResMat, parMatrix.rows());
     cronPar_2.pause();
 
-//    cout << " -- Calculating Error Solution 2 --" << endl;
-//    Matrix resMatrix_2 = multiArrayToMatrix(eyeResMat, parMatrix.rows(), parMatrix.rows());
-//    Matrix lResPar_2 = multiplyMatrix(resMatrix_2, copyRandomMatrix);
-//    printResult(matrixDimension, cronPar_2, lResPar_2);
-    printResultMin(matrixDimension, cronPar_2);
+    cout << " -- Calculating Error Solution 2 --" << endl;
+    Matrix resMatrix_2 = multiArrayToMatrix(eyeResMat, parMatrix.rows(), parMatrix.rows());
+    Matrix lResPar_2 = multiplyMatrix(resMatrix_2, copyRandomMatrix);
+    printResult(matrixDimension, cronPar_2, lResPar_2);
+//    printResultMin(matrixDimension, cronPar_2);
 
-    cout << endl <<" -- CLEANING --" << endl;
+    cout << endl << " -- CLEANING --" << endl;
 
-    delete[] augMat;
     cleanArray(eyeResMat, parMatrix.rows());
     cleanArray(newMat, parMatrix.rows());
 
     return 0;
 }
 
+/// DEBUG Solution 1
 void augArrayToSquareMatrix(MatrixConcatCols &augmentedMatrix, const double *augMat, const Matrix &resMatrix) {
     for (int i = 0; i < augmentedMatrix.cols() * augmentedMatrix.rows(); i++) {
         augmentedMatrix.getDataArray()[i] = augMat[i];
@@ -275,6 +284,7 @@ double **MatrixTo2DArray(Matrix mat) {
     return newArray;
 }
 
+/// For Solution 1
 Matrix multiArrayToMatrix(double **multiArray, int height, int width) {
     Matrix newMatrix(height, width);
     for (int i = 0; i < height; i++)
@@ -290,7 +300,6 @@ void cleanArray(double **multiArray, int size) {
     delete[] multiArray;
 }
 
-
 Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2) {
     assert(iMat1.cols() == iMat2.rows());
     Matrix lRes(iMat1.rows(), iMat2.cols());
@@ -302,7 +311,7 @@ Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2) {
     return lRes;
 }
 
-/// DEBUG ///
+/// DEBUG Solution 1
 void printAugMatrix1DArray(double *matrix, int size) {
     int colSize = size * 2;
     cout << "[" << endl;

@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include <filesystem>
 // OpenCL includes
 //#include <OpenCL/cl.h>
 #include <CL/cl.h>
@@ -47,7 +46,7 @@ int main(int argc, char **argv) {
     MatrixRandom randomMatrix(matrixDimension, matrixDimension);
     const Matrix &copyRandomMatrix(randomMatrix);
 
-    /* Can't use 2D array like in openACC. */
+    /* Can't use 2D array like in tp4_openacc. */
     double *newMat = convertValArrayToDouble(randomMatrix.getDataArray());
     double *eyeResMat = convertValArrayToDouble(MatrixIdentity(randomMatrix.rows()).getDataArray());
     int size = randomMatrix.rows();
@@ -204,7 +203,7 @@ int main(int argc, char **argv) {
     char *source;
     const char *sourceFile = "inversion.cpp";
     source = readSource(sourceFile);
-    // cout << source << endl;
+     cout << source << endl;
     program = clCreateProgramWithSource(context, 1, (const char **) &source,
                                         nullptr, &status);
     if (status != CL_SUCCESS) {
@@ -271,6 +270,8 @@ int main(int argc, char **argv) {
     // A workgroup size (local work size) is not required, but can be used.
     size_t globalWorkSize[1];  // There are ELEMENTS threads
     globalWorkSize[0] = matrixDimension;
+    size_t localWorkSize[1];
+    localWorkSize[0] = matrixDimension;
 
     // Execute the kernel.
     // 'globalWorkSize' is the 1D dimension of the work-items
@@ -281,7 +282,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < matrixDimension; i++) {
         status |= clSetKernelArg(kernel, 3, sizeof(cl_int), &i); /// row index that can't be parallelized
         status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, nullptr, globalWorkSize,
-                                        nullptr, 0, nullptr, &event);
+                                        localWorkSize, 0, nullptr, &event);
 
         /// EVENT PROFILING and TIME MEASUREMENT ///
         if (status != CL_SUCCESS) {

@@ -3,8 +3,8 @@
   <component name="CMakeWorkspace" PROJECT_DIR="$PROJECT_DIR$" />
   <component name="CidrRootsConfiguration">
     <sourceRoots>
-      <file path="$PROJECT_DIR$/openACC" />
-      <file path="$PROJECT_DIR$/openCL" />
+      <file path="$PROJECT_DIR$/tp4_openacc" />
+      <file path="$PROJECT_DIR$/tp4_opencl" />
     </sourceRoots>
   </component>
 </project>
