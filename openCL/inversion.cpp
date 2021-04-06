@@ -1,10 +1,10 @@
+
 __kernel void inversion(__global double *mat,
                         __global double *eyeResMat,
                         int size,
                         int index) {
 
     int idx = get_global_id(0);
-
 
 //    for (int index = 0; index < size; ++index) {
 

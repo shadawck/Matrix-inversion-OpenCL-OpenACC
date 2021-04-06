@@ -25,7 +25,7 @@ double **MatrixTo2DArray(Matrix mat);
 
 Matrix arrayToMatrix(double *array, int size);
 
-void printResultMin(int matrixDimension, double cron);
+[[maybe_unused]] void printResultMin(int matrixDimension, double cron);
 
 void printResult(int matrixDimension, double cron, Matrix &lRes);
 
@@ -173,7 +173,9 @@ int main(int argc, char **argv) {
 
     // Create a command queue and associate it with the device you
     // want to execute on
-    cmdQueue = clCreateCommandQueue(context, devices[0], CL_QUEUE_PROFILING_ENABLE, &status);
+    const cl_queue_properties properties[] = {CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0};
+    //cmdQueue = clCreateCommandQueue(context, devices[0], CL_QUEUE_PROFILING_ENABLE, &status);
+    cmdQueue = clCreateCommandQueueWithProperties(context, devices[0], properties, &status);
     if (status != CL_SUCCESS || cmdQueue == nullptr) {
         printf("clCreateCommandQueue failed\n");
         exit(-1);
@@ -314,11 +316,11 @@ int main(int argc, char **argv) {
 
     cout << "--> Writing result" << endl;
     clEnqueueReadBuffer(cmdQueue, d_newMat, CL_TRUE, 0, datasize, newMat,
-                        0, nullptr, nullptr);
+                        0, nullptr, &event);
 
     // Read the OpenCL output buffer (d_eyeResMat) to the host output array (C)
     clEnqueueReadBuffer(cmdQueue, d_eyeResMat, CL_TRUE, 0, datasize, eyeResMat,
-                        0, nullptr, nullptr);
+                        0, nullptr, &event);
 
     cout << endl << " --- OPENCL execution --- " << endl;
     Matrix resMatrix = arrayToMatrix(eyeResMat, size);
@@ -409,16 +411,16 @@ double *convertValArrayToDouble(valarray<double> array) {
 double **MatrixTo2DArray(Matrix mat) {
     /// Allocate
     auto **newArray = (double **) malloc(mat.rows() * sizeof(double *));
-    for (int i = 0; i < mat.rows(); i++)
+    for (size_t i = 0; i < mat.rows(); i++)
         newArray[i] = (double *) malloc(mat.cols() * sizeof(double));
 
-    for (int i = 0; i < mat.rows(); i++)
-        for (int j = 0; j < mat.cols(); j++)
+    for (size_t i = 0; i < mat.rows(); i++)
+        for (size_t j = 0; j < mat.cols(); j++)
             newArray[i][j] = mat(i, j);
     return newArray;
 }
 
-void printResultMin(int matrixDimension, double cron) {
+[[maybe_unused]] void printResultMin(int matrixDimension, double cron) {
     cout << "Matrix dimension : " << matrixDimension << endl;
     cout << "Total execution time : " << cron << endl;
 }
@@ -432,8 +434,8 @@ void printResult(int matrixDimension, double cron, Matrix &lRes) {
 Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2) {
     assert(iMat1.cols() == iMat2.rows());
     Matrix lRes(iMat1.rows(), iMat2.cols());
-    for (int i = 0; i < lRes.rows(); ++i) {
-        for (int j = 0; j < lRes.cols(); ++j) {
+    for (std::size_t i = 0; i < lRes.rows(); ++i) {
+        for (size_t j = 0; j < lRes.cols(); ++j) {
             lRes(i, j) = (iMat1.getRowCopy(i) * iMat2.getColumnCopy(j)).sum();
         }
     }
