@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <filesystem>
+#include "../openACC/Chrono.hpp"
 // OpenCL includes
 //#include <OpenCL/cl.h>
 #include <CL/cl.h>
@@ -23,6 +24,12 @@ double *convertValArrayToDouble(valarray<double> array);
 double **MatrixTo2DArray(Matrix mat);
 
 Matrix arrayToMatrix(double *array, int size);
+
+void printResultMin(int matrixDimension, double cron);
+
+void printResult(int matrixDimension, double cron, Matrix &lRes);
+
+Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2);
 
 int main(int argc, char **argv) {
     srand((unsigned) time(nullptr));
@@ -166,7 +173,7 @@ int main(int argc, char **argv) {
 
     // Create a command queue and associate it with the device you
     // want to execute on
-    cmdQueue = clCreateCommandQueue(context, devices[0], 0, &status);
+    cmdQueue = clCreateCommandQueue(context, devices[0], CL_QUEUE_PROFILING_ENABLE, &status);
     if (status != CL_SUCCESS || cmdQueue == nullptr) {
         printf("clCreateCommandQueue failed\n");
         exit(-1);
@@ -174,7 +181,6 @@ int main(int argc, char **argv) {
 
     cl_mem d_newMat;       // Input buffers on device
     cl_mem d_eyeResMat;    // Output buffer on device
-    cl_int d_size;         // Matrix Dimension (size*size)
 
     // Create a buffer object (d_newMat) that contains the data from the host ptr newMat
     d_newMat = clCreateBuffer(context, CL_MEM_USE_HOST_PTR,
@@ -191,7 +197,6 @@ int main(int argc, char **argv) {
         printf("clCreateBuffer failed\n");
         exit(-1);
     }
-
 
     cl_program program;
 
@@ -280,14 +285,34 @@ int main(int argc, char **argv) {
 
     // Execute the kernel.
     // 'globalWorkSize' is the 1D dimension of the work-items
-    status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, nullptr, globalWorkSize,
-                                    nullptr, 0, nullptr, nullptr);
+    cl_event event;
 
-    if (status != CL_SUCCESS) {
-        printf("clEnqueueNDRangeKernel failed\n");
-        exit(-1);
+    cout << "--> Starting Kernel execution" << endl;
+    double accTimeIteration = 0;
+    for (int i = 0; i < matrixDimension; i++) {
+        status |= clSetKernelArg(kernel, 3, sizeof(cl_int), &i);
+        status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, nullptr, globalWorkSize,
+                                        nullptr, 0, nullptr, &event);
+
+        /// EVENT PROFILING and TIME MEASUREMENT ///
+        if (status != CL_SUCCESS) {
+            printf("clEnqueueNDRangeKernel failed\n");
+            exit(-1);
+        }
+
+        clWaitForEvents(1, &event);
+        clFinish(cmdQueue);
+
+        cl_ulong cronStart, cronEnd;
+        clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &cronStart, nullptr);
+        clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &cronEnd, nullptr);
+
+        double execTimeSec = (cronEnd - cronStart) / 10E9;
+        accTimeIteration += execTimeSec;
     }
+    cout << "--> kernel finished execution" << endl;
 
+    cout << "--> Writing result" << endl;
     clEnqueueReadBuffer(cmdQueue, d_newMat, CL_TRUE, 0, datasize, newMat,
                         0, nullptr, nullptr);
 
@@ -295,9 +320,12 @@ int main(int argc, char **argv) {
     clEnqueueReadBuffer(cmdQueue, d_eyeResMat, CL_TRUE, 0, datasize, eyeResMat,
                         0, nullptr, nullptr);
 
-
-    cout << arrayToMatrix(newMat, size).str() << endl;
-
+    cout << endl << " --- OPENCL execution --- " << endl;
+    Matrix resMatrix = arrayToMatrix(eyeResMat, size);
+    cout << "--> Error computing" << endl;
+    Matrix multMatrix = multiplyMatrix(resMatrix, copyRandomMatrix);
+    printResult(size, accTimeIteration, multMatrix);
+//    printResultMin(matrixDimension, accTimeIteration);
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
@@ -388,4 +416,26 @@ double **MatrixTo2DArray(Matrix mat) {
         for (int j = 0; j < mat.cols(); j++)
             newArray[i][j] = mat(i, j);
     return newArray;
+}
+
+void printResultMin(int matrixDimension, double cron) {
+    cout << "Matrix dimension : " << matrixDimension << endl;
+    cout << "Total execution time : " << cron << endl;
+}
+
+void printResult(int matrixDimension, double cron, Matrix &lRes) {
+    cout << "Matrix dimension : " << matrixDimension << endl;
+    cout << "Erreur: " << lRes.getDataArray().sum() - matrixDimension << endl;
+    cout << "Total execution time : " << cron << " (sec) " << endl;
+}
+
+Matrix multiplyMatrix(const Matrix &iMat1, const Matrix &iMat2) {
+    assert(iMat1.cols() == iMat2.rows());
+    Matrix lRes(iMat1.rows(), iMat2.cols());
+    for (int i = 0; i < lRes.rows(); ++i) {
+        for (int j = 0; j < lRes.cols(); ++j) {
+            lRes(i, j) = (iMat1.getRowCopy(i) * iMat2.getColumnCopy(j)).sum();
+        }
+    }
+    return lRes;
 }
