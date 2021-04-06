@@ -6,13 +6,10 @@ __kernel void inversion(__global double *mat,
 
     int idx = get_global_id(0);
 
-//    for (int index = 0; index < size; ++index) {
-
-    double scale = 1.0 / mat[size * index + index]; // diag
+    double scale = 1.0 / mat[size * index + index];
 
     mat[size * index + idx] *= scale;
     eyeResMat[size * index + idx] *= scale;
-
 
     if (idx != index) {
         double currentScale = mat[size * idx + index];
@@ -23,5 +20,3 @@ __kernel void inversion(__global double *mat,
         }
     }
 }
-
-

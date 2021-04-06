@@ -1,9 +1,9 @@
+#define CL_HPP_TARGET_OPENCL_VERSION 220
 // System includes
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
 #include <filesystem>
-#include "../openACC/Chrono.hpp"
 // OpenCL includes
 //#include <OpenCL/cl.h>
 #include <CL/cl.h>
@@ -12,6 +12,7 @@
 // Project includes
 
 // Constants, globals
+double NANOSECOND_SEC = 10E9;
 
 // namespace
 using namespace std;
@@ -58,7 +59,6 @@ int main(int argc, char **argv) {
     }
 
     cl_int status;  // use as return value for most OpenCL functions
-
     cl_uint numPlatforms = 0;
     cl_platform_id *platforms;
 
@@ -112,9 +112,7 @@ int main(int argc, char **argv) {
     cl_device_id *devices;
 
     // Retrive the number of devices present
-    status = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, 1, nullptr,
-                            &numDevices);
-
+    status = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, 1, nullptr, &numDevices);
     if (status != CL_SUCCESS) {
         printf("clGetDeviceIDs failed\n");
         exit(-1);
@@ -134,8 +132,7 @@ int main(int argc, char **argv) {
     }
 
     // Fill in devices
-    status = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, numDevices,
-                            devices, nullptr);
+    status = clGetDeviceIDs(platforms[0], CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
     if (status != CL_SUCCESS) {
         printf("clGetDeviceIDs failed\n");
         exit(-1);
@@ -161,7 +158,6 @@ int main(int argc, char **argv) {
     printf("\n");
 
     cl_context context;
-
     // Create a context and associate it with the devices
     context = clCreateContext(nullptr, numDevices, devices, nullptr, nullptr, &status);
     if (status != CL_SUCCESS || context == nullptr) {
@@ -169,54 +165,48 @@ int main(int argc, char **argv) {
         exit(-1);
     }
 
-    cl_command_queue cmdQueue;
-
     // Create a command queue and associate it with the device you
     // want to execute on
+    cl_command_queue cmdQueue;
     const cl_queue_properties properties[] = {CL_QUEUE_PROPERTIES, CL_QUEUE_PROFILING_ENABLE, 0};
-    //cmdQueue = clCreateCommandQueue(context, devices[0], CL_QUEUE_PROFILING_ENABLE, &status);
     cmdQueue = clCreateCommandQueueWithProperties(context, devices[0], properties, &status);
     if (status != CL_SUCCESS || cmdQueue == nullptr) {
         printf("clCreateCommandQueue failed\n");
         exit(-1);
     }
 
-    cl_mem d_newMat;       // Input buffers on device
-    cl_mem d_eyeResMat;    // Output buffer on device
+    cl_mem d_newMat;       /// Original matrix will transform to identity matrix after inversion
+    cl_mem d_eyeResMat;    /// Identity Matrix will transform to inverse matrix after inversion
 
     // Create a buffer object (d_newMat) that contains the data from the host ptr newMat
-    d_newMat = clCreateBuffer(context, CL_MEM_USE_HOST_PTR,
-                              datasize, newMat, &status);
+    d_newMat = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, datasize, newMat, &status);
     if (status != CL_SUCCESS || d_newMat == nullptr) {
         printf("clCreateBuffer failed\n");
         exit(-1);
     }
 
     // Create a buffer object (d_eyeResMat) with enough space to hold the output data
-    d_eyeResMat = clCreateBuffer(context, CL_MEM_USE_HOST_PTR,
-                                 datasize, eyeResMat, &status);
+    d_eyeResMat = clCreateBuffer(context, CL_MEM_USE_HOST_PTR, datasize, eyeResMat, &status);
     if (status != CL_SUCCESS || d_eyeResMat == nullptr) {
         printf("clCreateBuffer failed\n");
         exit(-1);
     }
 
-    cl_program program;
-
-    char *source;
-    cout << filesystem::current_path() << endl;
-
-    const char *sourceFile = "inversion.cpp";
-    // This function reads in the source code of the program
-    source = readSource(sourceFile);
-
-    cout << source << endl;
+//    void *newMatInput, *eyeResMatOutput;
+//    newMatInput = clEnqueueMapBuffer(cmdQueue, d_newMat, CL_TRUE, CL_MAP_WRITE, 0, datasize, 0, nullptr, nullptr,
+//                                     &status);
+//    eyeResMatOutput = clEnqueueMapBuffer(cmdQueue, d_eyeResMat, CL_TRUE, CL_MAP_WRITE, 0, datasize, 0, nullptr, nullptr,
+//                                         &status);
 
     // Create a program. The 'source' string is the code from the
-    // vectoradd.cl file.
+    // inversion.cpp file.
+    cl_program program;
+    char *source;
+    const char *sourceFile = "inversion.cpp";
+    source = readSource(sourceFile);
+    // cout << source << endl;
     program = clCreateProgramWithSource(context, 1, (const char **) &source,
                                         nullptr, &status);
-
-
     if (status != CL_SUCCESS) {
         printf("clCreateProgramWithSource failed\n");
         exit(-1);
@@ -281,18 +271,15 @@ int main(int argc, char **argv) {
     // A workgroup size (local work size) is not required, but can be used.
     size_t globalWorkSize[1];  // There are ELEMENTS threads
     globalWorkSize[0] = matrixDimension;
-    // Determine a way to size workgroup according to some logic
-//    size_t localWorkSize[1];
-//    localWorkSize[0] = 8;
 
     // Execute the kernel.
     // 'globalWorkSize' is the 1D dimension of the work-items
     cl_event event;
 
     cout << "--> Starting Kernel execution" << endl;
-    double accTimeIteration = 0;
+    double accTimeIteration = 0;  /// Accumulate time
     for (int i = 0; i < matrixDimension; i++) {
-        status |= clSetKernelArg(kernel, 3, sizeof(cl_int), &i);
+        status |= clSetKernelArg(kernel, 3, sizeof(cl_int), &i); /// row index that can't be parallelized
         status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, nullptr, globalWorkSize,
                                         nullptr, 0, nullptr, &event);
 
@@ -302,32 +289,37 @@ int main(int argc, char **argv) {
             exit(-1);
         }
 
-        clWaitForEvents(1, &event);
+        clWaitForEvents(1, &event); /// wait for kernel to finish
         clFinish(cmdQueue);
 
+        /// Get kernel execution time for current iteration
         cl_ulong cronStart, cronEnd;
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &cronStart, nullptr);
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &cronEnd, nullptr);
 
-        double execTimeSec = (cronEnd - cronStart) / 10E9;
+        /// accumulate time
+        double execTimeSec = (cronEnd - cronStart) / NANOSECOND_SEC;
         accTimeIteration += execTimeSec;
     }
     cout << "--> kernel finished execution" << endl;
 
     cout << "--> Writing result" << endl;
-    clEnqueueReadBuffer(cmdQueue, d_newMat, CL_TRUE, 0, datasize, newMat,
-                        0, nullptr, &event);
+    // Don't need to gather newMat (now an identity matrix)
+    // clEnqueueReadBuffer(cmdQueue, d_newMat, CL_TRUE, 0, datasize, newMat, 0, nullptr, &event);
 
-    // Read the OpenCL output buffer (d_eyeResMat) to the host output array (C)
-    clEnqueueReadBuffer(cmdQueue, d_eyeResMat, CL_TRUE, 0, datasize, eyeResMat,
-                        0, nullptr, &event);
+    // Read the inversed matrix buffer (d_eyeResMat). Need to wait for kernel to end execution before reading matrix; so add &event signal.
+    clEnqueueReadBuffer(cmdQueue, d_eyeResMat, CL_TRUE, 0, datasize, eyeResMat, 0, nullptr, &event);
+
+//    clEnqueueUnmapMemObject(cmdQueue, d_newMat, newMatInput, 0, nullptr, &event);
+//    clEnqueueUnmapMemObject(cmdQueue, d_eyeResMat, eyeResMatOutput, 0, nullptr, &event);
 
     cout << endl << " --- OPENCL execution --- " << endl;
     Matrix resMatrix = arrayToMatrix(eyeResMat, size);
     cout << "--> Error computing" << endl;
     Matrix multMatrix = multiplyMatrix(resMatrix, copyRandomMatrix);
     printResult(size, accTimeIteration, multMatrix);
-//    printResultMin(matrixDimension, accTimeIteration);
+
+//    cout << endl << "Inversed matrix: " << endl << arrayToMatrix(newMat, size).str() << endl;
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
