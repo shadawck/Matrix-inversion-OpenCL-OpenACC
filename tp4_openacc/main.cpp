@@ -72,7 +72,6 @@ void invertSequential(Matrix &mat) {
     }
 }
 
-
 /**
  * Invert matrix with Gauss Jordan method
  * Raw (without Matrix class) && OPENACC implementation

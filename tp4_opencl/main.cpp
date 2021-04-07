@@ -8,8 +8,6 @@
 #include <CL/cl.h>
 #include "Matrix.hpp"
 
-// Project includes
-
 // Constants, globals
 double NANOSECOND_SEC = 10E9;
 
@@ -25,7 +23,7 @@ double **MatrixTo2DArray(Matrix mat);
 
 Matrix arrayToMatrix(double *array, int size);
 
-[[maybe_unused]] void printResultMin(int matrixDimension, double cron);
+void printResultMin(int matrixDimension, double cron);
 
 void printResult(int matrixDimension, double cron, Matrix &lRes);
 
@@ -46,7 +44,7 @@ int main(int argc, char **argv) {
     MatrixRandom randomMatrix(matrixDimension, matrixDimension);
     const Matrix &copyRandomMatrix(randomMatrix);
 
-    /* Can't use 2D array like in tp4_openacc. */
+/// Can't use 2D array like in tp4_openacc so we create a contiguous 1D array
     double *newMat = convertValArrayToDouble(randomMatrix.getDataArray());
     double *eyeResMat = convertValArrayToDouble(MatrixIdentity(randomMatrix.rows()).getDataArray());
     int size = randomMatrix.rows();
@@ -183,13 +181,12 @@ int main(int argc, char **argv) {
         exit(-1);
     }
 
-    // Create a buffer object (d_eyeResMat) with enough space to hold the output data
+    // Create a buffer object (d_eyeResMat) that contains the data from the host ptr eyeResMat
     d_eyeResMat = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, datasize, eyeResMat, &status);
     if (status != CL_SUCCESS || d_eyeResMat == nullptr) {
         printf("clCreateBuffer failed\n");
         exit(-1);
     }
-
 
     // Create a program. The 'source' string is the code from the
     // inversion.cpp file.
@@ -197,6 +194,8 @@ int main(int argc, char **argv) {
     char *source;
     const char *sourceFile = "inversion.cpp";
     source = readSource(sourceFile);
+
+/// Uncomment to print kernel code
 //    cout << source << endl;
     program = clCreateProgramWithSource(context, 1, (const char **) &source,
                                         nullptr, &status);
@@ -267,7 +266,6 @@ int main(int argc, char **argv) {
 
     cl_event event;
 
-    cout << "--> Starting Kernel execution" << endl;
     double accTimeIteration = 0;  /// Accumulate time
     for (int i = 0; i < matrixDimension; i++) {
         /// Iteration for each row that can't be parallelized
@@ -285,7 +283,7 @@ int main(int argc, char **argv) {
         clFinish(cmdQueue);
 
         /// Get kernel execution time for current iteration
-        cl_ulong cronStart, cronEnd;
+        cl_ulong cronStart, cronEnd; // cronStart and cronEnd are measured in nanosecond so later we divide by 10E9 to get a result in second.
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &cronStart, nullptr);
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &cronEnd, nullptr);
 
@@ -293,8 +291,6 @@ int main(int argc, char **argv) {
         double execTimeSec = (cronEnd - cronStart) / NANOSECOND_SEC;
         accTimeIteration += execTimeSec;
     }
-    cout << "--> kernel finished execution" << endl;
-    cout << "--> Writing result" << endl;
 
 /// Don't need to gather newMat (now an identity matrix)
 /// Uncomment if you want to verify original matrix which become an identity matrix after inversion
@@ -310,8 +306,9 @@ int main(int argc, char **argv) {
 //    clEnqueueUnmapMemObject(cmdQueue, d_newMat, newMatInput, 0, nullptr, nullptr);
 //    clEnqueueUnmapMemObject(cmdQueue, d_eyeResMat, eyeResMatOutput, 0, nullptr, nullptr);
 
+    cout << endl << " --- OPENCL execution --- " << endl;
+
 /// Uncomment lines below if you want to print matrix error
-//    cout << endl << " --- OPENCL execution --- " << endl;
 //    Matrix resMatrix = arrayToMatrix(eyeResMat, size);
 //    cout << "--> Error computing" << endl;
 //    Matrix multMatrix = multiplyMatrix(resMatrix, copyRandomMatrix);
@@ -414,9 +411,9 @@ double **MatrixTo2DArray(Matrix mat) {
     return newArray;
 }
 
-[[maybe_unused]] void printResultMin(int matrixDimension, double cron) {
+void printResultMin(int matrixDimension, double cron) {
     cout << "Matrix dimension : " << matrixDimension << endl;
-    cout << "Total execution time : " << cron << endl;
+    cout << "Total execution time (sec) : " << cron << endl;
 }
 
 void printResult(int matrixDimension, double cron, Matrix &lRes) {
