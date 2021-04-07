@@ -264,18 +264,14 @@ int main(int argc, char **argv) {
     // A workgroup size (local work size) is not required, but can be used.
     size_t globalWorkSize[1];  // There are ELEMENTS threads
     globalWorkSize[0] = matrixDimension;
-//    size_t localWorkSize[1];
-//    localWorkSize[0] = matrixDimension;
 
-    // Execute the kernel.
-    // 'globalWorkSize' is the 1D dimension of the work-items
     cl_event event;
-
 
     cout << "--> Starting Kernel execution" << endl;
     double accTimeIteration = 0;  /// Accumulate time
     for (int i = 0; i < matrixDimension; i++) {
-        status |= clSetKernelArg(kernel, 3, sizeof(cl_int), &i); /// row index that can't be parallelized
+        /// Iteration for each row that can't be parallelized
+        status |= clSetKernelArg(kernel, 3, sizeof(cl_int), &i);
         status = clEnqueueNDRangeKernel(cmdQueue, kernel, 1, nullptr, globalWorkSize,
                                         nullptr, 0, nullptr, &event);
 
@@ -293,32 +289,38 @@ int main(int argc, char **argv) {
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &cronStart, nullptr);
         clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &cronEnd, nullptr);
 
-        /// accumulate time
+        /// accumulate time for each kernel execution
         double execTimeSec = (cronEnd - cronStart) / NANOSECOND_SEC;
         accTimeIteration += execTimeSec;
     }
     cout << "--> kernel finished execution" << endl;
-
     cout << "--> Writing result" << endl;
-    // Don't need to gather newMat (now an identity matrix)
+
+/// Don't need to gather newMat (now an identity matrix)
+/// Uncomment if you want to verify original matrix which become an identity matrix after inversion
     //  clEnqueueReadBuffer(cmdQueue, d_newMat, CL_TRUE, 0, datasize, newMat, 0, nullptr, &event);
 
     // Read the inversed matrix buffer (d_eyeResMat). Need to wait for kernel to end execution before reading matrix; so add &event signal.
     clEnqueueReadBuffer(cmdQueue, d_eyeResMat, CL_TRUE, 0, datasize, eyeResMat, 0, nullptr, &event);
 
+/// Useful if you want to use pinned memory (fast and with PCIe connection) as the matrix stay on host.
 //    void *newMatInput, *eyeResMatOutput;
 //    newMatInput = clEnqueueMapBuffer(cmdQueue, d_newMat, CL_FALSE, CL_MAP_READ, 0, datasize, 0, nullptr, nullptr,&status);
 //    eyeResMatOutput = clEnqueueMapBuffer(cmdQueue, d_eyeResMat, CL_FALSE, CL_MAP_READ, 0, datasize, 0, nullptr, nullptr,&status);
 //    clEnqueueUnmapMemObject(cmdQueue, d_newMat, newMatInput, 0, nullptr, nullptr);
 //    clEnqueueUnmapMemObject(cmdQueue, d_eyeResMat, eyeResMatOutput, 0, nullptr, nullptr);
 
+/// Uncomment lines below if you want to print matrix error
 //    cout << endl << " --- OPENCL execution --- " << endl;
 //    Matrix resMatrix = arrayToMatrix(eyeResMat, size);
 //    cout << "--> Error computing" << endl;
 //    Matrix multMatrix = multiplyMatrix(resMatrix, copyRandomMatrix);
 //    printResult(size, accTimeIteration, multMatrix);
+
+/// Comment line below if you want to print matrix error
     printResultMin(size, accTimeIteration);
 
+/// Uncomment if you want to print inverse matrix
 //    cout << endl << "Inversed matrix: " << endl << arrayToMatrix(newMat, size).str() << endl;
 
     clReleaseKernel(kernel);

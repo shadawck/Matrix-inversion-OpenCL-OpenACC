@@ -185,15 +185,18 @@ int main(int argc, char **argv) {
     /**
     * Sequential execution
     */
-    cout << "--- SEQUENTIAL EXECUTION ---" << endl;
-
-    auto cronSeq = Chrono(true);
-    invertSequential(seqMatrix);
-    cronSeq.pause();
-
-//    Matrix lResSeq = multiplyMatrix(seqMatrix, copyRandomMatrix);
-//    printResult(matrixDimension, cronSeq, lResSeq);
-    printResultMin(matrixDimension, cronSeq);
+//    cout << "--- SEQUENTIAL EXECUTION ---" << endl;
+//
+//    auto cronSeq = Chrono(true);
+//    invertSequential(seqMatrix);
+//    cronSeq.pause();
+//
+///// Uncomment to compute matrix error
+////    Matrix lResSeq = multiplyMatrix(seqMatrix, copyRandomMatrix);
+////    printResult(matrixDimension, cronSeq, lResSeq);
+//
+///// Comment when computing matrix error
+//    printResultMin(matrixDimension, cronSeq);
 
     /**
      * tp4_openacc NUMERO 1 execution
@@ -229,13 +232,15 @@ int main(int argc, char **argv) {
     bruteForce(newMat, eyeResMat, parMatrix.rows());
     cronPar_2.pause();
 
-    cout << " -- Calculating Error Solution 2 --" << endl;
-    Matrix resMatrix_2 = multiArrayToMatrix(eyeResMat, parMatrix.rows(), parMatrix.rows());
-    Matrix lResPar_2 = multiplyMatrix(resMatrix_2, copyRandomMatrix);
-    printResult(matrixDimension, cronPar_2, lResPar_2);
-//    printResultMin(matrixDimension, cronPar_2);
 
-    cout << endl << " -- CLEANING --" << endl;
+/// Uncomment to compute matrix error
+//    cout << " -- Calculating Error --" << endl;
+//    Matrix resMatrix_2 = multiArrayToMatrix(eyeResMat, parMatrix.rows(), parMatrix.rows());
+//    Matrix lResPar_2 = multiplyMatrix(resMatrix_2, copyRandomMatrix);
+//    printResult(matrixDimension, cronPar_2, lResPar_2);
+
+/// Comment when computing matrix error
+    printResultMin(matrixDimension, cronPar_2);
 
     cleanArray(eyeResMat, parMatrix.rows());
     cleanArray(newMat, parMatrix.rows());
