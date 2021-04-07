@@ -19,8 +19,8 @@ Pareil pour openCL :
 > ./pp_opencl <matrixDimension>
 ```
 
-Vous pouvez également compiler les projets séparement : 
-Pour compiler seulement openACC, faite à la racine du projet : 
+Vous pouvez également compiler les projets séparement :    
+Pour compiler seulement openACC, faite à la racine du projet :    
 ```shell
 > cd tp4_openacc 
 > mkdir build && cd build 
@@ -30,7 +30,7 @@ Pour compiler seulement openACC, faite à la racine du projet :
 ```
 
 Pour compiler seulement openCL, commenter la ligne indiquée dans le CmakeList de OpenCl et 
-faites à la racine du projet:
+faites à la racine du projet:   
 ```shell
 > cd tp4_opencl
 > mkdir build && cd build 
