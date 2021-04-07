@@ -1,4 +1,4 @@
-#define CL_HPP_TARGET_OPENCL_VERSION 220
+#define CL_TARGET_OPENCL_VERSION 220
 // System includes
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,7 +42,9 @@ int main(int argc, char **argv) {
     size_t datasize = sizeof(double) * matrixDimension * matrixDimension;
 
     MatrixRandom randomMatrix(matrixDimension, matrixDimension);
-    const Matrix &copyRandomMatrix(randomMatrix);
+
+/// Uncomment if you want to compute matrix error
+//    const Matrix &copyRandomMatrix(randomMatrix);
 
 /// Can't use 2D array like in tp4_openacc so we create a contiguous 1D array
     double *newMat = convertValArrayToDouble(randomMatrix.getDataArray());

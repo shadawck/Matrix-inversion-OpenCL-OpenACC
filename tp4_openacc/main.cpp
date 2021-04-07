@@ -177,7 +177,9 @@ int main(int argc, char **argv) {
     }
 
     MatrixRandom randomMatrix(matrixDimension, matrixDimension);
-    const Matrix &copyRandomMatrix(randomMatrix);
+
+/// Uncomment if you want to compute matrix error
+//    const Matrix &copyRandomMatrix(randomMatrix);
     Matrix seqMatrix(randomMatrix);
     Matrix parMatrix(randomMatrix);
 
@@ -185,16 +187,15 @@ int main(int argc, char **argv) {
     * Sequential execution
     */
 //    cout << "--- SEQUENTIAL EXECUTION ---" << endl;
-//
 //    auto cronSeq = Chrono(true);
 //    invertSequential(seqMatrix);
 //    cronSeq.pause();
-//
-///// Uncomment to compute matrix error
-////    Matrix lResSeq = multiplyMatrix(seqMatrix, copyRandomMatrix);
-////    printResult(matrixDimension, cronSeq, lResSeq);
-//
-///// Comment when computing matrix error
+
+/// Uncomment to compute matrix error
+//    Matrix lResSeq = multiplyMatrix(seqMatrix, copyRandomMatrix);
+//    printResult(matrixDimension, cronSeq, lResSeq);
+
+/// Comment when computing matrix error
 //    printResultMin(matrixDimension, cronSeq);
 
     /**
