@@ -158,8 +158,8 @@ void bruteForce(double **mat, double **eyeResMat, int size) {
                     double currentScale = mat[i][row];
 #pragma acc for independent
                     for (int j = 0; j < size; ++j) {
-                        mat[i][j] = mat[i][j] - currentScale * mat[row][j];
-                        eyeResMat[i][j] = eyeResMat[i][j] - currentScale * eyeResMat[row][j];
+                        mat[i][j] -=  currentScale * mat[row][j];
+                        eyeResMat[i][j] -= currentScale * eyeResMat[row][j];
                     }
                 }
             }
