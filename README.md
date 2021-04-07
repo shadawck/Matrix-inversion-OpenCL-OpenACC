@@ -8,7 +8,7 @@ Pour compiler les deux solution (openACC et openCL),
 ```
 
 Cela crée un dossier pour chaque projet avec chacun un éxecutable.
-Donc pour openACC faite (a partir du dossier de build: 
+Donc pour openACC faites (à partir du dossier de build): 
 ```shell
 > ./tp4_openacc/pp_openacc <matrixDimension>
 ```
@@ -27,8 +27,8 @@ Pour compiler seulement openACC, faite à la racine du projet :
 > ./pp_openacc <matrixDimension>
 ```
 
-Pour compiler seulement openCL, commenter la ligne indiqué dans le CmakeList de OpenCl et 
-faite a la racine du projet:
+Pour compiler seulement openCL, commenter la ligne indiquée dans le CmakeList de OpenCl et 
+faites à la racine du projet:
 ```shell
 > cd tp4_opencl
 > mkdir build && cd build 
