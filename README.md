@@ -10,11 +10,13 @@ Pour compiler les deux solution (openACC et openCL),
 Cela crée un dossier pour chaque projet avec chacun un éxecutable.
 Donc pour openACC faites (à partir du dossier de build): 
 ```shell
-> ./tp4_openacc/pp_openacc <matrixDimension>
+> cd tp4_openacc
+> ./pp_openacc <matrixDimension>
 ```
 Pareil pour openCL :
 ```shell
-> ./tp4_opencl/pp_opencl <matrixDimension>
+> cd tp4_pp_opencl
+> ./pp_opencl <matrixDimension>
 ```
 
 Vous pouvez également compiler les projets séparement : 
